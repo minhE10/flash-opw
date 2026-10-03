@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flash-opw"
+version = "0.1.0"
+description = "Independent Triton FlashSinkhorn implementation and reproducible toy comparisons"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.5", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+plots = ["matplotlib>=3.7"]
+
+[tool.setuptools.packages.find]
+include = ["flashopw*", "experiments*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["gpu: requires an explicitly selected NVIDIA GPU and Linux Triton"]
