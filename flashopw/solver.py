@@ -142,8 +142,8 @@ def _sinkhorn_streaming(x, y, *, a, b, epsilon, cost_scale, n_iters, schedule,
     if backend == "triton":
         if x.device.type != "cuda" or x.dtype != torch.float32:
             raise ValueError("FlashSinkhorn requires CUDA float32 inputs; use sinkhorn_online for a CPU oracle")
-        if x.shape[1] > 256:
-            raise ValueError("This implementation supports feature dimensions 1..256")
+        if x.shape[1] > 1024:
+            raise ValueError("This implementation supports feature dimensions 1..1024")
         if block_m not in (16, 32, 64) or block_n not in (32, 64, 128):
             raise ValueError("Triton tiles: block_m in {16,32,64}, block_n in {32,64,128}")
         if precision not in ("ieee", "tf32x3", "tf32"):

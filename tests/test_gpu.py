@@ -9,7 +9,7 @@ from flashopw import sinkhorn_dense, sinkhorn_flash, apply_plan, materialize_pla
 pytestmark = pytest.mark.gpu
 
 
-@pytest.mark.parametrize("d", [1, 2, 7, 32, 64, 129, 256])
+@pytest.mark.parametrize("d", [1, 2, 7, 32, 64, 129, 256, 512])
 @pytest.mark.parametrize("precision", ["ieee", "tf32x3"])
 @pytest.mark.parametrize("schedule", ["alternating", "symmetric"])
 def test_updates_vs_float64_reference(d, precision, schedule):

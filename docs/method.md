@@ -77,7 +77,9 @@ differentiate through a fixed number of solver iterations.
 
 - Balanced OT, strictly positive weights summing to one, rectangular clouds,
   squared Euclidean cost, constant epsilon, alternating/symmetric updates.
-- Triton: CUDA float32, feature dimensions 1..256, unbatched clouds.
+- Triton: CUDA float32, feature dimensions 1..1024, unbatched clouds. Feature
+  dimensions above 128 are accumulated in 128-wide dot-product chunks to keep
+  register and shared-memory use bounded.
 - Dense and tiled Torch oracle: CPU/CUDA float32/float64.
 - Early stopping checks both marginal L1 residuals; benchmarks use fixed
   iterations and separately report convergence, so equal work is compared.

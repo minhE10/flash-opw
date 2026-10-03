@@ -15,7 +15,7 @@ import sys
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--arch", type=int, default=120)
-    parser.add_argument("--dims", type=int, nargs="+", default=[2, 7, 64, 65, 129, 256])
+    parser.add_argument("--dims", type=int, nargs="+", default=[2, 7, 64, 65, 129, 256, 512])
     parser.add_argument("--output", type=Path, default=Path("outputs/offline-compile.json"))
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
@@ -35,7 +35,7 @@ def main():
         for bm, bn, stages in configurations:
             for precision in ("ieee", "tf32x3"):
                 base = dict(N=37, M=79, D=d, SCALE=10.0, PRECISION=precision,
-                            BM=bm, BN=bn, BD=max(32, triton.next_power_of_2(d)))
+                            BM=bm, BN=bn, BD=kernels.feature_block(d))
                 variants = [
                     (kernels._update_kernel, ("Q", "K", "OLD", "BIAS", "LOGW", "OUT"), dict(SYMMETRIC=False)),
                     (kernels._update_kernel, ("Q", "K", "OLD", "BIAS", "LOGW", "OUT"), dict(SYMMETRIC=True)),

@@ -19,23 +19,31 @@ def launch_config(d, block_m, block_n):
     return min(block_m, 32), min(block_n, 64), 2
 
 
+def feature_block(d):
+    """Return the per-dot feature tile; larger dimensions are accumulated in chunks."""
+    return min(128, max(32, triton.next_power_of_2(d)))
+
+
 @triton.jit
 def _update_kernel(Q, K, OLD, BIAS, LOGW, OUT,
                    N: tl.constexpr, M: tl.constexpr, D: tl.constexpr,
                    SCALE: tl.constexpr, SYMMETRIC: tl.constexpr,
                    PRECISION: tl.constexpr, BM: tl.constexpr, BN: tl.constexpr, BD: tl.constexpr):
     rows = tl.program_id(0) * BM + tl.arange(0, BM)
-    dims = tl.arange(0, BD)
-    q = tl.load(Q + rows[:, None] * D + dims[None, :],
-                (rows[:, None] < N) & (dims[None, :] < D), other=0)
     running = tl.full((BM,), -float("inf"), tl.float32)
     total = tl.zeros((BM,), tl.float32)
     for start in range(tl.cdiv(M, BN)):
         cols = start * BN + tl.arange(0, BN)
-        k = tl.load(K + cols[None, :] * D + dims[:, None],
-                    (cols[None, :] < M) & (dims[:, None] < D), other=0)
         bias = tl.load(BIAS + cols, cols < M, other=0)
-        scores = tl.dot(q, k, input_precision=PRECISION) * SCALE + bias[None, :]
+        scores = tl.zeros((BM, BN), tl.float32)
+        for dim_start in range(0, D, BD):
+            dims = dim_start + tl.arange(0, BD)
+            q = tl.load(Q + rows[:, None] * D + dims[None, :],
+                        (rows[:, None] < N) & (dims[None, :] < D), other=0)
+            k = tl.load(K + cols[None, :] * D + dims[:, None],
+                        (cols[None, :] < M) & (dims[:, None] < D), other=0)
+            scores += tl.dot(q, k, input_precision=PRECISION)
+        scores = scores * SCALE + bias[None, :]
         scores = tl.where(cols[None, :] < M, scores, -float("inf"))
         new_max = tl.maximum(running, tl.max(scores, 1))
         total = total * tl.exp(running - new_max) + tl.sum(tl.exp(scores - new_max[:, None]), 1)
@@ -53,17 +61,20 @@ def _apply_kernel(Q, K, U, V, VALUES, OUT,
                   BM: tl.constexpr, BN: tl.constexpr, BD: tl.constexpr, BP: tl.constexpr):
     rows = tl.program_id(0) * BM + tl.arange(0, BM)
     features = tl.program_id(1) * BP + tl.arange(0, BP)
-    dims = tl.arange(0, BD)
-    q = tl.load(Q + rows[:, None] * D + dims[None, :],
-                (rows[:, None] < N) & (dims[None, :] < D), other=0)
     running = tl.full((BM,), -float("inf"), tl.float32)
     acc = tl.zeros((BM, BP), tl.float32)
     for start in range(tl.cdiv(M, BN)):
         cols = start * BN + tl.arange(0, BN)
-        k = tl.load(K + cols[None, :] * D + dims[:, None],
-                    (cols[None, :] < M) & (dims[:, None] < D), other=0)
         bias = tl.load(V + cols, cols < M, other=0)
-        scores = tl.dot(q, k, input_precision=PRECISION) * SCALE + bias[None, :]
+        scores = tl.zeros((BM, BN), tl.float32)
+        for dim_start in range(0, D, BD):
+            dims = dim_start + tl.arange(0, BD)
+            q = tl.load(Q + rows[:, None] * D + dims[None, :],
+                        (rows[:, None] < N) & (dims[None, :] < D), other=0)
+            k = tl.load(K + cols[None, :] * D + dims[:, None],
+                        (cols[None, :] < M) & (dims[:, None] < D), other=0)
+            scores += tl.dot(q, k, input_precision=PRECISION)
+        scores = scores * SCALE + bias[None, :]
         scores = tl.where(cols[None, :] < M, scores, -float("inf"))
         new_max = tl.maximum(running, tl.max(scores, 1))
         probs = tl.exp(scores - new_max[:, None])
@@ -85,7 +96,7 @@ def update(q, k, old, bias, logw, out, scale, symmetric, precision, block_m, blo
     with torch.cuda.device(q.device):
         _update_kernel[(triton.cdiv(len(q), block_m),)](
             q, k, old, bias, logw, out, len(q), len(k), q.shape[1], scale,
-            symmetric, precision, block_m, block_n, max(32, triton.next_power_of_2(q.shape[1])),
+            symmetric, precision, block_m, block_n, feature_block(q.shape[1]),
             num_warps=4, num_stages=stages, enable_fp_fusion=False)
 
 
@@ -97,6 +108,6 @@ def apply(q, k, u, v, values, scale, precision, block_m, block_n):
     with torch.cuda.device(q.device):
         _apply_kernel[(triton.cdiv(len(q), block_m), triton.cdiv(values.shape[1], 32))](
             q, k, u, v, values, out, len(q), len(k), q.shape[1], values.shape[1],
-            scale, precision, block_m, block_n, max(32, triton.next_power_of_2(q.shape[1])), 32,
+            scale, precision, block_m, block_n, feature_block(q.shape[1]), 32,
             num_warps=4, num_stages=stages, enable_fp_fusion=False)
     return out
