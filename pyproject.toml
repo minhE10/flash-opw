@@ -12,6 +12,7 @@ dependencies = ["torch>=2.5", "numpy>=1.24"]
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 plots = ["matplotlib>=3.7"]
+phase2 = ["torchvision>=0.20"]
 
 [tool.setuptools.packages.find]
 include = ["flashopw*", "experiments*"]

@@ -103,6 +103,33 @@ bash scripts/run_phase1.sh 1 --warmups 2 --repeats 3
 Run this only on a GPU allocated to the job. The script does not discover,
 reset, or take over another process's GPU.
 
+## Phase 2: real-data benchmark
+
+Install the optional torchvision dependency in the server environment:
+
+```bash
+python -m pip install -e '.[phase2]'
+```
+
+Then run the MNIST to Fashion-MNIST benchmark with ResNet18 penultimate-layer
+features (`d=512`):
+
+```bash
+bash scripts/run_phase2.sh 1
+```
+
+The default sizes are `5000`, `10000`, `15000`, and `20000`, with
+`epsilon=0.1`, 10 fixed iterations, TF32, 10 warmups, and 50 measured runs.
+Features and downloaded datasets are cached under `data/`. Dense comparison is
+automatically skipped when the estimated working set exceeds the configured
+RTX 5080 memory budget; those rows are reported as Flash-only rather than
+causing an out-of-memory run.
+
+This phase uses the repository's supported squared-Euclidean cost on the
+paper's real feature representation. It does not yet enable OTDD's additional
+class-label lookup cost; that requires extending the solver API and Triton
+kernel.
+
 ## Kết quả và cách so sánh
 
 Ba dataset tự sinh: Gaussian dịch chuyển, Gaussian mixture và hai vòng tròn.
