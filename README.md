@@ -80,6 +80,29 @@ python -m experiments.toy --device cuda --datasets gaussian mixture \
   --dim 64 --sizes 256 512 1024 --iters 200 --repeats 3
 ```
 
+## Phase 1: paper-style synthetic benchmark
+
+After a single GPU has been allocated, run the reproducible Phase 1 preset:
+
+```bash
+bash scripts/run_phase1.sh 1
+```
+
+The preset uses a Gaussian point-cloud pair with `n=m=10000`, `d=64`,
+`epsilon=0.1`, 10 Sinkhorn iterations, the symmetric schedule, TF32,
+10 unmeasured warmups, and 50 measured repetitions. It is close to the
+paper's forward benchmark while using a memory budget suitable for a 16 GB
+RTX 5080. Results are written to `outputs/<UTC timestamp>/`.
+
+For a quick validation run, override the measurement counts:
+
+```bash
+bash scripts/run_phase1.sh 1 --warmups 2 --repeats 3
+```
+
+Run this only on a GPU allocated to the job. The script does not discover,
+reset, or take over another process's GPU.
+
 ## Kết quả và cách so sánh
 
 Ba dataset tự sinh: Gaussian dịch chuyển, Gaussian mixture và hai vòng tròn.

@@ -18,12 +18,14 @@ from .datasets import DATASETS, make_dataset
 from .runtime import configure, metadata
 
 
-def measure(fn, device, repeats):
-    # Compile/warm up separately. No retained previous result pollutes the peak.
-    warm = fn()
-    if device.type == "cuda":
-        torch.cuda.synchronize(device)
-    del warm
+def measure(fn, device, repeats, warmups=1):
+    # Compile/cache warmups are separate from measured samples. No retained
+    # previous result pollutes the peak-memory measurement.
+    for _ in range(warmups):
+        warm = fn()
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        del warm
     samples, peaks = [], []
     result = None
     for _ in range(repeats):
@@ -110,6 +112,8 @@ def main():
     parser.add_argument("--schedule", choices=("alternating", "symmetric"), default="alternating")
     parser.add_argument("--precision", choices=("ieee", "tf32x3", "tf32"), default="tf32x3")
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--warmups", type=int, default=1,
+                        help="Unmeasured compile/cache warmup runs before timing")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--memory-fraction", type=float, default=0.25)
@@ -119,8 +123,8 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--no-plots", action="store_true")
     args = parser.parse_args()
-    if min(args.sizes) < 1 or args.repeats < 1 or args.dim < 1 or args.iters < 1:
-        parser.error("sizes, dim, iters and repeats must be positive")
+    if min(args.sizes) < 1 or args.repeats < 1 or args.warmups < 0 or args.dim < 1 or args.iters < 1:
+        parser.error("sizes, dim, iters and repeats must be positive; warmups must be non-negative")
     for key in ("target_ratio", "max_dense_mib", "agreement_tol", "residual_tol", "epsilon", "cost_scale"):
         if not math.isfinite(getattr(args, key)) or getattr(args, key) <= 0:
             parser.error(f"{key} must be finite and positive")
@@ -132,7 +136,8 @@ def main():
     out.mkdir(parents=True, exist_ok=False)
     env = metadata(device)
     env["args"] = {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()}
-    env["timing"] = "median synchronized wall time; includes validation/setup; excludes JIT warmup and diagnostics"
+    env["timing"] = ("median synchronized wall time; includes validation/setup; excludes "
+                     "configured compile/cache warmups and diagnostics")
     env["memory"] = "peak PyTorch allocated bytes above live-input baseline; excludes driver/JIT caches; not total VRAM"
     env["comparison"] = "triton vs dense" if device.type == "cuda" else "torch online oracle vs dense; NOT a Triton benchmark"
     (out / "environment.json").write_text(json.dumps(env, indent=2), encoding="utf-8")
@@ -156,9 +161,11 @@ def main():
             x, y, a, b = make_dataset(dataset, n, m, args.dim, seed=args.seed, weighted=args.weighted, device=device)
             kwargs = dict(a=a, b=b, epsilon=args.epsilon, cost_scale=args.cost_scale,
                           n_iters=args.iters, schedule=args.schedule)
-            dense, dense_ms, dense_mem, dense_times = measure(lambda: sinkhorn_dense(x, y, **kwargs), device, args.repeats)
+            dense, dense_ms, dense_mem, dense_times = measure(
+                lambda: sinkhorn_dense(x, y, **kwargs), device, args.repeats, args.warmups)
             extra = {"precision": args.precision} if device.type == "cuda" else {}
-            candidate, cand_ms, cand_mem, cand_times = measure(lambda: solver(x, y, **kwargs, **extra), device, args.repeats)
+            candidate, cand_ms, cand_mem, cand_times = measure(
+                lambda: solver(x, y, **kwargs, **extra), device, args.repeats, args.warmups)
             # Gauge-invariant log-coupling difference without n*m allocation:
             # the coordinate dot term is shared; delta(log P)=delta u+delta v.
             du, dv = candidate.u - dense.u, candidate.v - dense.v
