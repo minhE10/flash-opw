@@ -1,0 +1,2 @@
+exact_distance,flash_distance,distance_abs_error,distance_relative_error,transport_relative_error,exact_marginal_error,flash_marginal_error,cost_abs_max,cost_abs_mean,cost_relative_fro
+0.816983402726778,0.8365611770039036,0.019577774277125592,0.02396349082708715,0.11211313187687834,2.580902059290402e-07,1.2107687658718946e-06,4.54345580132242,0.4422449311168964,0.13911782855277602
