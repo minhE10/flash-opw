@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "flash-opw"
+name = "flash-sinkhorn"
 version = "0.1.0"
-description = "Independent Triton FlashSinkhorn implementation and reproducible toy comparisons"
+description = "FlashSinkhorn Triton solver and reproducible OT baseline benchmarks"
 requires-python = ">=3.10"
 dependencies = ["torch>=2.5", "numpy>=1.24"]
 
@@ -13,9 +13,10 @@ dependencies = ["torch>=2.5", "numpy>=1.24"]
 dev = ["pytest>=8"]
 plots = ["matplotlib>=3.7"]
 phase2 = ["torchvision>=0.20"]
+baselines = ["geomloss>=0.2", "pykeops>=2.2", "ott-jax>=0.4"]
 
 [tool.setuptools.packages.find]
-include = ["flashopw*", "experiments*"]
+include = ["flashopw*", "flashsinkhorn*", "experiments*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

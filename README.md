@@ -130,6 +130,41 @@ paper's real feature representation. It does not yet enable OTDD's additional
 class-label lookup cost; that requires extending the solver API and Triton
 kernel.
 
+## Baseline comparison and paper-style illustrations
+
+Install the optional comparison stack:
+
+```bash
+python -m pip install -e '.[baselines]'
+python -c "import jax; print(jax.devices())"
+```
+
+Run the n- and d-sweeps on MNIST/Fashion-MNIST:
+
+```bash
+bash scripts/run_baselines.sh 1
+```
+
+This compares FlashSinkhorn with GeomLoss/KeOps, GeomLoss/Tensorized, and
+OTT-JAX, then writes `paper_style_baselines.png` and
+`baseline_results.csv`. The n-sweep uses the 512D ResNet18 features; the
+d-sweep uses deterministic leading slices of those features. Tensorized rows
+are skipped when their estimated quadratic working set exceeds the configured
+VRAM budget. GeomLoss baselines use its legacy `SamplesLoss` API with
+`debias=False`, `blur=sqrt(epsilon)`, and `scaling=0.9`; the exact backend and
+status are recorded in the CSV.
+
+For a short smoke benchmark:
+
+```bash
+bash scripts/run_baselines.sh 1 \
+  --n-sizes 5000 --d-sizes 64 256 512 --d-sweep-n 5000 \
+  --warmups 2 --repeats 3
+```
+
+The public import name is now `flashsinkhorn`; the existing `flashopw` import
+remains as a compatibility alias.
+
 ## Kết quả và cách so sánh
 
 Ba dataset tự sinh: Gaussian dịch chuyển, Gaussian mixture và hai vòng tròn.
