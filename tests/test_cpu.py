@@ -3,7 +3,10 @@ import torch
 
 from experiments.datasets import make_dataset
 from flashopw import (sinkhorn_dense, sinkhorn_flash, sinkhorn_online,
-                     materialize_plan, apply_plan, diagnostics, point_gradients)
+                     materialize_plan, apply_plan, apply_plan_hadamard,
+                     diagnostics, point_gradients, hessian_vector_product,
+                     regularized_ot_cost, sinkhorn_cost, source_gradient,
+                     target_gradient)
 
 
 @pytest.mark.parametrize("schedule", ["alternating", "symmetric"])
@@ -84,6 +87,25 @@ def test_gradient_finite_difference():
         assert float(expected) == pytest.approx(fd, rel=1e-6, abs=1e-8)
 
 
+def test_single_side_gradient_helpers():
+    x, y, a, b = make_dataset("gaussian", 7, 9, dtype=torch.float64, weighted=True)
+    result = sinkhorn_online(x, y, a=a, b=b, epsilon=0.3, n_iters=200)
+    gx, gy = point_gradients(result)
+    torch.testing.assert_close(source_gradient(result), gx)
+    torch.testing.assert_close(target_gradient(result), gy)
+
+
+def test_hvp_fixed_cg_iterations():
+    x, y, a, b = make_dataset("gaussian", 7, 9, dtype=torch.float64, weighted=True)
+    result = sinkhorn_dense(x, y, a=a, b=b, epsilon=0.7, n_iters=500)
+    direction = torch.linspace(-1, 1, x.numel(), dtype=x.dtype).reshape_as(x)
+    _, info = hessian_vector_product(
+        result, direction, damping=1e-5, max_cg_iters=3,
+        cg_rtol=0.0, cg_atol=0.0, return_info=True,
+    )
+    assert info.cg_iters == 3
+
+
 @pytest.mark.parametrize("kwargs", [dict(epsilon=0), dict(epsilon=float("nan")), dict(n_iters=0),
     dict(schedule="invalid"), dict(tol=-1), dict(cost_scale=0), dict(block_m=0), dict(check_every=0)])
 def test_invalid_parameters(kwargs):
@@ -109,3 +131,72 @@ def test_dataset_reproducibility_and_plan_guard():
     result = sinkhorn_dense(x, y, n_iters=2)
     with pytest.raises(ValueError, match="max_entries"):
         materialize_plan(result, max_entries=24)
+
+
+def test_hadamard_weighted_transport_against_dense_plan():
+    x, y, a, b = make_dataset("gaussian", 7, 11, 3, weighted=True, dtype=torch.float64)
+    result = sinkhorn_online(x, y, a=a, b=b, epsilon=0.4, n_iters=80,
+                             block_m=3, block_n=5)
+    plan = materialize_plan(result)
+    generator = torch.Generator().manual_seed(123)
+    left = torch.randn(7, 4, dtype=x.dtype, generator=generator)
+    right = torch.randn(11, 4, dtype=x.dtype, generator=generator)
+    values = torch.randn(11, 5, dtype=x.dtype, generator=generator)
+    expected = (plan * (left @ right.T)) @ values
+    torch.testing.assert_close(apply_plan_hadamard(result, left, right, values), expected)
+
+
+@pytest.mark.parametrize("cost_scale", [0.5, 1.0])
+def test_streaming_hvp_against_gradient_finite_difference(cost_scale):
+    x, y, a, b = make_dataset("gaussian", 5, 7, 2, weighted=True, dtype=torch.float64)
+    generator = torch.Generator().manual_seed(9)
+    direction = torch.randn(x.shape, dtype=x.dtype, generator=generator)
+    direction /= direction.norm()
+    kw = dict(a=a, b=b, epsilon=0.7, cost_scale=cost_scale, n_iters=1000,
+              tol=1e-13, check_every=10)
+    result = sinkhorn_dense(x, y, **kw)
+    actual, info = hessian_vector_product(
+        result, direction, damping=0.0, max_cg_iters=100,
+        cg_rtol=1e-12, cg_atol=1e-14, return_info=True,
+    )
+    step = 1e-4
+    plus = point_gradients(sinkhorn_dense(x + step * direction, y, **kw))[0]
+    minus = point_gradients(sinkhorn_dense(x - step * direction, y, **kw))[0]
+    expected = (plus - minus) / (2 * step)
+    assert info.cg_converged
+    torch.testing.assert_close(actual, expected, rtol=2e-5, atol=2e-7)
+
+
+def test_differentiable_cost_backward_and_hvp():
+    x, y, a, b = make_dataset("gaussian", 5, 7, 2, weighted=True, dtype=torch.float64)
+    x = x.requires_grad_(True)
+    direction = torch.linspace(-1, 1, x.numel(), dtype=x.dtype).reshape_as(x)
+    kwargs = dict(a=a, b=b, epsilon=0.7, n_iters=1000, tol=1e-13,
+                  check_every=10, backend="dense", hvp_damping=0.0,
+                  hvp_max_cg_iters=100, hvp_cg_rtol=1e-12,
+                  hvp_cg_atol=1e-14)
+    loss = sinkhorn_cost(x, y, **kwargs)
+    gradient = torch.autograd.grad(loss, x, create_graph=True)[0]
+    auto_hvp = torch.autograd.grad((gradient * direction).sum(), x)[0]
+
+    result = sinkhorn_dense(x.detach(), y, a=a, b=b, epsilon=0.7,
+                            n_iters=1000, tol=1e-13, check_every=10)
+    expected_gradient = point_gradients(result)[0]
+    expected_hvp = hessian_vector_product(
+        result, direction, damping=0.0, max_cg_iters=100,
+        cg_rtol=1e-12, cg_atol=1e-14,
+    )
+    torch.testing.assert_close(loss.detach(), regularized_ot_cost(result))
+    torch.testing.assert_close(gradient.detach(), expected_gradient)
+    torch.testing.assert_close(auto_hvp, expected_hvp)
+
+
+def test_differentiable_cost_target_only_backward():
+    x, y, a, b = make_dataset("gaussian", 5, 7, 2, weighted=True, dtype=torch.float64)
+    y = y.requires_grad_(True)
+    loss = sinkhorn_cost(x, y, a=a, b=b, epsilon=0.7, n_iters=1000,
+                         tol=1e-13, check_every=10, backend="dense")
+    gradient = torch.autograd.grad(loss, y)[0]
+    result = sinkhorn_dense(x, y.detach(), a=a, b=b, epsilon=0.7,
+                            n_iters=1000, tol=1e-13, check_every=10)
+    torch.testing.assert_close(gradient, target_gradient(result))

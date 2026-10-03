@@ -1,8 +1,8 @@
 """Forward solvers for <C,P> + epsilon * KL(P | a tensor b).
 
 C_ij = cost_scale * ||x_i-y_j||^2. Both marginals are positive probabilities.
-The public API is intentionally forward-only; see point_gradients for the
-envelope gradient at convergence. No graph through the iterations is retained.
+The solvers return detached potentials and retain no graph through the
+iterations. ``sinkhorn_cost`` layers analytic backward/HVP operators on top.
 """
 
 from dataclasses import dataclass

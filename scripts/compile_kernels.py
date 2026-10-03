@@ -31,16 +31,32 @@ def main():
     spec.loader.exec_module(kernels)
     records = []
     for d in args.dims:
-        configurations = sorted({kernels.launch_config(d, bm, bn) for bm, bn in ((16, 32), (32, 64))})
-        for bm, bn, stages in configurations:
+        regular_configurations = {
+            kernels.launch_config(d, bm, bn) for bm, bn in ((16, 32), (32, 64))
+        }
+        hadamard_configurations = {
+            kernels.hadamard_launch_config(d, d, bm, bn) for bm, bn in ((16, 32), (32, 64))
+        }
+        for bm, bn, stages in sorted(regular_configurations | hadamard_configurations):
             for precision in ("ieee", "tf32x3"):
                 base = dict(N=37, M=79, D=d, SCALE=10.0, PRECISION=precision,
                             BM=bm, BN=bn, BD=kernels.feature_block(d))
-                variants = [
-                    (kernels._update_kernel, ("Q", "K", "OLD", "BIAS", "LOGW", "OUT"), dict(SYMMETRIC=False)),
-                    (kernels._update_kernel, ("Q", "K", "OLD", "BIAS", "LOGW", "OUT"), dict(SYMMETRIC=True)),
-                    (kernels._apply_kernel, ("Q", "K", "U", "V", "VALUES", "OUT"), dict(P=35, BP=32)),
-                ]
+                variants = []
+                if (bm, bn, stages) in regular_configurations:
+                    variants.extend([
+                        (kernels._update_kernel, ("Q", "K", "OLD", "BIAS", "LOGW", "OUT"),
+                         dict(SYMMETRIC=False)),
+                        (kernels._update_kernel, ("Q", "K", "OLD", "BIAS", "LOGW", "OUT"),
+                         dict(SYMMETRIC=True)),
+                        (kernels._apply_kernel, ("Q", "K", "U", "V", "VALUES", "OUT"),
+                         dict(P=35, BP=32)),
+                    ])
+                if (bm, bn, stages) in hadamard_configurations:
+                    variants.append((
+                        kernels._hadamard_apply_kernel,
+                        ("Q", "K", "U", "V", "LEFT", "RIGHT", "VALUES", "OUT"),
+                        dict(R=d, P=35, BR=kernels.feature_block(d), BP=32),
+                    ))
                 for fn, pointers, extra in variants:
                     source = ASTSource(fn, signature={name: "*fp32" for name in pointers}, constexprs={**base, **extra})
                     compiled = triton.compile(source, target=GPUTarget("cuda", args.arch, 32),

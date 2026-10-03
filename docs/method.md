@@ -44,7 +44,11 @@ and averages each old/new update with factor 1/2; writes go to separate buffers.
 | Algorithms 1 and 3, streamed LSE half-steps | `flashopw/triton_kernels.py::_update_kernel` |
 | Algorithm 2, streamed `P V` | `flashopw/triton_kernels.py::_apply_kernel` |
 | Adjoint `P^T V` | Same kernel, swapping source/target and potentials |
+| Theorem 5 Hadamard transport | `flashopw/triton_kernels.py::_hadamard_apply_kernel` |
 | Point gradients at convergence | `flashopw/transport.py::point_gradients` |
+| Schur-CG HVP, equations (25)-(31) | `flashopw/differentiation.py::hessian_vector_product` |
+| Analytic autograd wrapper | `flashopw/differentiation.py::sinkhorn_cost` |
+| Optional KeOps HVP transport oracle | `flashopw/transport.py` (`backend="keops"`) |
 
 Each query tile remains resident while key tiles stream. The running row maximum
 and rescaled exponential sum prevent exponent overflow. We fold the marginal
@@ -73,6 +77,13 @@ explicit diagnostic helper `materialize_plan` deliberately loses linear memory.
 masses r,c. These become the OT envelope gradients at convergence. They do not
 differentiate through a fixed number of solver iterations.
 
+`hessian_vector_product` implements the paper's implicit/explicit split. It
+forms `R A`, solves the damped Schur complement with CG, applies `R^T`, and
+adds `E A`. The coupling is accessed through streamed transport products and
+one fused Hadamard-weighted transport; HVP work uses strict IEEE precision.
+`sinkhorn_cost` exposes this as analytic backward and x-double-backward without
+retaining the Sinkhorn iteration graph.
+
 ## Supported scope and limits
 
 - Balanced OT, strictly positive weights summing to one, rectangular clouds,
@@ -83,8 +94,9 @@ differentiate through a fixed number of solver iterations.
 - Dense and tiled Torch oracle: CPU/CUDA float32/float64.
 - Early stopping checks both marginal L1 residuals; benchmarks use fixed
   iterations and separately report convergence, so equal work is compared.
-- No HVP/implicit CG, autograd integration, unbalanced OT, epsilon annealing,
-  distributed execution or full reproduction of the paper's downstream tasks.
+- HVP/double backward is implemented for the source support `x` with `y` held
+  fixed. Double backward with respect to `y`, unbalanced OT, epsilon annealing,
+  distributed execution and the paper's downstream tasks are not implemented.
 - Input coordinates should be reasonably scaled and centered. Large shared
   offsets or very small epsilon can cause cancellation in shifted FP32
   potentials; test against float64 and increase precision/iterations as needed.

@@ -8,10 +8,10 @@ Environment: Python 3.14.3, PyTorch 2.11.0+cpu. No local CUDA device.
 
 ```text
 python -m pytest -q
-29 passed, 37 skipped
+38 passed, 43 skipped
 ```
 
-The 37 skips are real GPU tests, **not GPU passes**. CPU tests cover:
+The 43 skips are real GPU tests, **not GPU passes**. CPU tests cover:
 
 - Direct-distance dense vs streamed shifted updates in float64, both schedules,
   half/full squared cost, rectangular clouds and partial tiles.
@@ -19,6 +19,9 @@ The 37 skips are real GPU tests, **not GPU passes**. CPU tests cover:
 - Nonuniform positive marginals, early stopping and small-epsilon constant costs.
 - `P V`, `P.T V`, signed multi-column values and unconverged row masses.
 - First-order envelope gradients vs finite differences of converged OT.
+- Hadamard-weighted transport vs a materialized dense plan.
+- Paper HVP decomposition vs finite differences, for full and half squared cost.
+- Differentiable scalar cost, analytic backward and PyTorch double backward.
 - Invalid-input rejection and deterministic datasets.
 
 Toy end-to-end run:
@@ -52,8 +55,8 @@ NumPy 2.5.3; no PyTorch or CUDA GPU needed for these developer checks.
 
 ```text
 python scripts/interpret_kernels.py
-PASS: 24 interpreted solver cases, 48 transport/adjoint cases;
-max plan error=2.31e-08
+PASS: 28 solver, 56 transport/adjoint and 28 Hadamard cases;
+max plan error=8.55e-07
 ```
 
 This executes the actual Triton kernel bodies with the Triton CPU interpreter,
@@ -66,15 +69,17 @@ does not model GPU scheduling, resource limits or Tensor Core rounding.
 ## Offline RTX 5080 compilation
 
 ```text
-python scripts/compile_kernels.py --arch 120 --output outputs/offline-compile-rtx5080.json
-PASS: compiled 54 variants for sm_120
+python scripts/compile_kernels.py --arch 120 --output outputs/offline-compile-hvp-rtx5080.json
+PASS: compiled 78 variants for sm_120
 ```
 
 Triton 3.8.0 generated nonempty CUDA binaries for update (both schedules) and
 transport kernels in `ieee` and `tf32x3`, with d in {2, 7, 64, 65, 129, 256, 512}.
 The effective tile/pipeline choices all used **at most 65,536 bytes of shared
 memory**. Initial larger configurations exceeded that budget; the final launch
-policy caps high-dimensional tiles at 16x32 and uses one pipeline stage.
+policy caps high-dimensional tiles at 16x32 and uses one pipeline stage. The
+Hadamard HVP kernel has its own stricter launch policy from d=64 because it
+keeps score and weighting dot products live at the same time.
 
 This verifies compiler acceptance and static shared-memory requirements,
 **not** launch success or numerical/performance behavior on actual hardware.

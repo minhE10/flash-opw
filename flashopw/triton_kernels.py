@@ -24,6 +24,14 @@ def feature_block(d):
     return min(128, max(32, triton.next_power_of_2(d)))
 
 
+def hadamard_launch_config(d, rank, block_m, block_n):
+    """Use smaller tiles when the HVP kernel keeps two dot products live."""
+    block_m, block_n, stages = launch_config(d, block_m, block_n)
+    if max(d, rank) >= 64:
+        return min(block_m, 16), min(block_n, 32), min(stages, 1)
+    return block_m, block_n, stages
+
+
 @triton.jit
 def _update_kernel(Q, K, OLD, BIAS, LOGW, OUT,
                    N: tl.constexpr, M: tl.constexpr, D: tl.constexpr,
@@ -89,6 +97,56 @@ def _apply_kernel(Q, K, U, V, VALUES, OUT,
              (rows[:, None] < N) & (features[None, :] < P))
 
 
+@triton.jit
+def _hadamard_apply_kernel(Q, K, U, V, LEFT, RIGHT, VALUES, OUT,
+                           N: tl.constexpr, M: tl.constexpr, D: tl.constexpr,
+                           R: tl.constexpr, P: tl.constexpr,
+                           SCALE: tl.constexpr, PRECISION: tl.constexpr,
+                           BM: tl.constexpr, BN: tl.constexpr, BD: tl.constexpr,
+                           BR: tl.constexpr, BP: tl.constexpr):
+    """Stream ``(P * (LEFT @ RIGHT.T)) @ VALUES``.
+
+    The score normalization follows ``_apply_kernel``. The signed Hadamard
+    factor is accumulated only after the stable exponential rescaling.
+    """
+    rows = tl.program_id(0) * BM + tl.arange(0, BM)
+    features = tl.program_id(1) * BP + tl.arange(0, BP)
+    running = tl.full((BM,), -float("inf"), tl.float32)
+    acc = tl.zeros((BM, BP), tl.float32)
+    for start in range(tl.cdiv(M, BN)):
+        cols = start * BN + tl.arange(0, BN)
+        bias = tl.load(V + cols, cols < M, other=0)
+        scores = tl.zeros((BM, BN), tl.float32)
+        for dim_start in range(0, D, BD):
+            dims = dim_start + tl.arange(0, BD)
+            q = tl.load(Q + rows[:, None] * D + dims[None, :],
+                        (rows[:, None] < N) & (dims[None, :] < D), other=0)
+            k = tl.load(K + cols[None, :] * D + dims[:, None],
+                        (cols[None, :] < M) & (dims[:, None] < D), other=0)
+            scores += tl.dot(q, k, input_precision=PRECISION)
+        factors = tl.zeros((BM, BN), tl.float32)
+        for rank_start in range(0, R, BR):
+            ranks = rank_start + tl.arange(0, BR)
+            left = tl.load(LEFT + rows[:, None] * R + ranks[None, :],
+                           (rows[:, None] < N) & (ranks[None, :] < R), other=0)
+            right = tl.load(RIGHT + cols[None, :] * R + ranks[:, None],
+                            (cols[None, :] < M) & (ranks[:, None] < R), other=0)
+            factors += tl.dot(left, right, input_precision="ieee")
+        scores = scores * SCALE + bias[None, :]
+        scores = tl.where(cols[None, :] < M, scores, -float("inf"))
+        new_max = tl.maximum(running, tl.max(scores, 1))
+        weighted = tl.exp(scores - new_max[:, None]) * factors
+        values = tl.load(VALUES + cols[:, None] * P + features[None, :],
+                         (cols[:, None] < M) & (features[None, :] < P), other=0)
+        acc = acc * tl.exp(running - new_max)[:, None]
+        acc = acc + tl.dot(weighted, values, input_precision="ieee")
+        running = new_max
+    logscale = tl.load(U + rows, rows < N, other=0) + running
+    acc = acc * tl.exp(logscale)[:, None]
+    tl.store(OUT + rows[:, None] * P + features[None, :], acc,
+             (rows[:, None] < N) & (features[None, :] < P))
+
+
 def update(q, k, old, bias, logw, out, scale, symmetric, precision, block_m, block_n):
     import torch
 
@@ -110,4 +168,24 @@ def apply(q, k, u, v, values, scale, precision, block_m, block_n):
             q, k, u, v, values, out, len(q), len(k), q.shape[1], values.shape[1],
             scale, precision, block_m, block_n, feature_block(q.shape[1]), 32,
             num_warps=4, num_stages=stages, enable_fp_fusion=False)
+    return out
+
+
+def hadamard_apply(q, k, u, v, left, right, values, scale, precision, block_m, block_n):
+    import torch
+
+    block_m, block_n, stages = hadamard_launch_config(
+        q.shape[1], left.shape[1], block_m, block_n,
+    )
+    out = torch.empty((len(q), values.shape[1]), device=q.device, dtype=q.dtype)
+    with torch.cuda.device(q.device):
+        _hadamard_apply_kernel[
+            (triton.cdiv(len(q), block_m), triton.cdiv(values.shape[1], 32))
+        ](
+            q, k, u, v, left, right, values, out,
+            len(q), len(k), q.shape[1], left.shape[1], values.shape[1],
+            scale, precision, block_m, block_n, feature_block(q.shape[1]),
+            feature_block(left.shape[1]), 32,
+            num_warps=4, num_stages=stages, enable_fp_fusion=False,
+        )
     return out

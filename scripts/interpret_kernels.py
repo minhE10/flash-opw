@@ -81,8 +81,21 @@ def main():
                         2/eps, "ieee", bm, bn, bd, 32)
                     np.testing.assert_allclose(out, (expected.T if transpose else expected)@values,
                                                rtol=8e-4, atol=3e-6)
+                left = rng.normal(size=(n, d)).astype(np.float32)
+                right = rng.normal(size=(m, d)).astype(np.float32)
+                values = rng.normal(size=(m, 35)).astype(np.float32)
+                out = np.empty((n, 35), dtype=np.float32)
+                kernels._hadamard_apply_kernel[(triton.cdiv(n, bm), 2)](
+                    *map(pointer, (q, k, u, v, left, right, values, out)),
+                    n, m, d, d, 35, 2/eps, "ieee", bm, bn, bd,
+                    kernels.feature_block(d), 32)
+                np.testing.assert_allclose(
+                    out, (expected * (left@right.T))@values,
+                    rtol=1e-3, atol=5e-6,
+                )
                 count += 1
-    print(f"PASS: {count} interpreted solver cases, {count*2} transport/adjoint cases; max plan error={max_error:.3g}")
+    print(f"PASS: {count} solver, {count*2} transport/adjoint and {count} Hadamard cases; "
+          f"max plan error={max_error:.3g}")
     print(f"Triton {triton.__version__}; CPU interpreter, NOT GPU execution.")
 
 

@@ -4,7 +4,9 @@ import pytest
 import torch
 
 from experiments.datasets import make_dataset
-from flashopw import sinkhorn_dense, sinkhorn_flash, apply_plan, materialize_plan, diagnostics, point_gradients
+from flashopw import (sinkhorn_dense, sinkhorn_flash, apply_plan,
+                     apply_plan_hadamard, materialize_plan, diagnostics,
+                     point_gradients, hessian_vector_product, sinkhorn_cost)
 
 pytestmark = pytest.mark.gpu
 
@@ -54,3 +56,37 @@ def test_gpu_early_stopping():
     assert result.n_iters < 300
     stats = diagnostics(result)
     assert max(stats["row_l1"], stats["col_l1"]) < 1e-4
+
+
+def test_hadamard_transport_kernel():
+    x, y, a, b = make_dataset("gaussian", 17, 29, 7, device="cuda", weighted=True)
+    result = sinkhorn_flash(x, y, a=a, b=b, epsilon=0.5, n_iters=200, precision="ieee")
+    plan = materialize_plan(result)
+    left = torch.randn(17, 7, device="cuda")
+    right = torch.randn(29, 7, device="cuda")
+    values = torch.randn(29, 13, device="cuda")
+    expected = (plan * (left @ right.T)) @ values
+    torch.testing.assert_close(
+        apply_plan_hadamard(result, left, right, values, precision="ieee"),
+        expected, rtol=8e-4, atol=3e-6,
+    )
+
+
+def test_flash_hvp_and_double_backward_against_dense():
+    x, y, a, b = make_dataset("gaussian", 17, 23, 3, device="cuda", weighted=True)
+    direction = torch.randn_like(x)
+    kwargs = dict(a=a, b=b, epsilon=0.8, n_iters=300, tol=1e-5, check_every=10)
+    flash = sinkhorn_flash(x, y, precision="ieee", **kwargs)
+    dense = sinkhorn_dense(x, y, **kwargs)
+    hvp_kwargs = dict(damping=1e-5, max_cg_iters=80, cg_rtol=1e-6)
+    actual = hessian_vector_product(flash, direction, **hvp_kwargs)
+    expected = hessian_vector_product(dense, direction, **hvp_kwargs)
+    torch.testing.assert_close(actual, expected, rtol=5e-3, atol=2e-5)
+
+    tracked_x = x.detach().requires_grad_(True)
+    loss = sinkhorn_cost(tracked_x, y, precision="ieee", backend="flash",
+                         hvp_damping=1e-5, hvp_max_cg_iters=80,
+                         hvp_cg_rtol=1e-6, **kwargs)
+    gradient = torch.autograd.grad(loss, tracked_x, create_graph=True)[0]
+    auto_hvp = torch.autograd.grad((gradient * direction).sum(), tracked_x)[0]
+    torch.testing.assert_close(auto_hvp, actual, rtol=8e-4, atol=3e-6)

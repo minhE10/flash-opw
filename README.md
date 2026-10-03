@@ -165,6 +165,47 @@ bash scripts/run_baselines.sh 1 \
 The public import name is now `flashsinkhorn`; the existing `flashopw` import
 remains as a compatibility alias.
 
+## Full eight-panel paper benchmark
+
+Install all benchmark and plotting dependencies in the isolated environment:
+
+```bash
+python -m pip install -e '.[dev,plots,baselines]'
+python -c "import torch, pykeops, jax; print(torch.__version__); print(pykeops.__version__); print(jax.devices())"
+```
+
+After one GPU has been allocated, run the complete synthetic benchmark:
+
+```bash
+bash scripts/run_paper_benchmarks.sh 1
+```
+
+The defaults match Appendix H of the paper: points sampled uniformly from
+`[0,1]^d`, uniform marginals, full squared-Euclidean cost, `epsilon=0.1`, ten
+fixed forward/backward iterations, and 100 Sinkhorn plus 50 fixed CG iterations
+for HVP. It uses 10 warmups and 50/30/20 measured forward/backward/HVP runs,
+with strict FP32 for HVP. Sizes run from large to small. On a 16 GB RTX 5080,
+known-quadratic Tensorized cases are skipped before OOM according to
+`--max-tensorized-mib`; the CSV records every skip or baseline failure.
+
+A short end-to-end check before the long run is:
+
+```bash
+bash scripts/run_paper_benchmarks.sh 1 \
+  --n-sizes 5000 --d-sizes 64 \
+  --hvp-n-sizes 5000 --hvp-d-sizes 64 \
+  --warmups 1 --forward-repeats 2 --backward-repeats 2 --hvp-repeats 2
+```
+
+Each run writes `00_overview.png`, eight numbered per-panel PNGs,
+`paper_results.csv`, `paper_results.json`, and `environment.json` under a new
+`outputs/paper_<UTC timestamp>/` directory. Results are checkpointed after
+each method/size. KeOps and JAX use streaming online backends; Tensorized is
+omitted from HVP as in the paper, and KeOps/JAX are omitted from PyTorch peak
+memory plots because their external allocators would make those values invalid.
+Absolute runtimes will not match the paper's A100-80GB; compare curve shape,
+OOM boundary, and speedup ratios instead.
+
 ## Kết quả và cách so sánh
 
 Ba dataset tự sinh: Gaussian dịch chuyển, Gaussian mixture và hai vòng tròn.
@@ -220,7 +261,9 @@ phải kết quả thực thi hay benchmark GPU. `sm_120` là kiến trúc đíc
 
 ```python
 import torch
-from flashopw import sinkhorn_flash, apply_plan, diagnostics, point_gradients
+from flashsinkhorn import (sinkhorn_flash, sinkhorn_cost, apply_plan,
+                           diagnostics, point_gradients,
+                           hessian_vector_product)
 
 # Khởi động Python với CUDA_VISIBLE_DEVICES đã trỏ tới GPU được cấp.
 x = torch.randn(256, 32, device="cuda", dtype=torch.float32) * 0.1
@@ -229,8 +272,30 @@ result = sinkhorn_flash(x, y, epsilon=0.2, n_iters=300, tol=1e-4)
 print(diagnostics(result))
 py = apply_plan(result, y)  # P @ y, không tạo P
 grad_x, grad_y = point_gradients(result)  # envelope gradient khi đã hội tụ
+
+# Scalar loss với analytic backward; không backprop qua các vòng Sinkhorn.
+x = x.requires_grad_(True)
+loss = sinkhorn_cost(
+    x, y, epsilon=0.2, n_iters=300, tol=1e-4,
+    backend="flash", precision="tf32x3",
+)
+grad_x = torch.autograd.grad(loss, x, create_graph=True)[0]
+direction = torch.randn_like(x)
+hvp_x = torch.autograd.grad((grad_x * direction).sum(), x)[0]
+
+# Low-level API khi đã có potentials và cần thông tin hội tụ CG.
+hvp_x, cg_info = hessian_vector_product(
+    result, direction, damping=1e-5, max_cg_iters=50,
+    cg_rtol=1e-6, return_info=True,
+)
 ```
 
-Đây là API forward + gradient tường minh, chưa tích hợp `.backward()`/HVP.
+Backward dùng gradient analytic từ barycentric projection. HVP theo Theorem 5
+của paper: Schur complement có damping + CG, các phép `P@v`, `P.T@v`, `P@M`
+và Hadamard-weighted transport đều streaming, không materialize `P`. HVP hiện
+chỉ hỗ trợ double backward theo `x` khi giữ `y` cố định; các transport nội bộ
+của HVP dùng IEEE FP32 như khuyến nghị số của paper. Potentials phải hội tụ
+trước khi gradient/HVP được xem là đạo hàm của nghiệm EOT tối ưu.
+
 `materialize_plan` chỉ dành cho kiểm tra bài toán nhỏ và có giới hạn kích thước.
 Không hỗ trợ unbalanced OT trong bản này dù tên thư mục cha có “FlashUOT”.
