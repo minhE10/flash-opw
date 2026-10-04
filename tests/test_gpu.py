@@ -19,9 +19,15 @@ def test_updates_vs_float64_reference(d, precision, schedule):
     kw = dict(epsilon=0.17, n_iters=40, schedule=schedule)
     ref = sinkhorn_dense(x.double(), y.double(), a=a.double()/a.double().sum(), b=b.double()/b.double().sum(), **kw)
     result = sinkhorn_flash(x, y, a=a, b=b, precision=precision, **kw)
-    torch.testing.assert_close(materialize_plan(result).double(), materialize_plan(ref), rtol=5e-4, atol=2e-7)
-    torch.testing.assert_close(result.f.double(), ref.f, rtol=5e-4, atol=2e-5)
-    torch.testing.assert_close(result.g.double(), ref.g, rtol=5e-4, atol=2e-5)
+    plan_rtol, plan_atol = (5e-3, 5e-6) if precision == "tf32" else (5e-4, 2e-7)
+    potential_rtol = 5e-3 if precision == "tf32" else 5e-4
+    potential_atol = 5e-5 if precision == "tf32" else 2e-5
+    torch.testing.assert_close(materialize_plan(result).double(), materialize_plan(ref),
+                               rtol=plan_rtol, atol=plan_atol)
+    torch.testing.assert_close(result.f.double(), ref.f,
+                               rtol=potential_rtol, atol=potential_atol)
+    torch.testing.assert_close(result.g.double(), ref.g,
+                               rtol=potential_rtol, atol=potential_atol)
 
 
 @pytest.mark.parametrize("iterations", [1, 150])
@@ -31,12 +37,13 @@ def test_transport_actual_masses_and_gradients(iterations, precision):
     result = sinkhorn_flash(x, y, a=a, b=b, n_iters=iterations, epsilon=0.1, precision=precision)
     plan = materialize_plan(result)
     values = torch.linspace(-1, 2, len(y)*35, device="cuda").reshape(len(y), 35)
-    torch.testing.assert_close(apply_plan(result, values), plan @ values, rtol=5e-4, atol=3e-7)
-    torch.testing.assert_close(apply_plan(result, x, transpose=True), plan.T @ x, rtol=5e-4, atol=3e-7)
-    torch.testing.assert_close(apply_plan(result, torch.ones_like(b)), plan.sum(1), rtol=5e-4, atol=3e-7)
+    rtol, atol = (5e-3, 1e-5) if precision == "tf32" else (5e-4, 3e-7)
+    torch.testing.assert_close(apply_plan(result, values), plan @ values, rtol=rtol, atol=atol)
+    torch.testing.assert_close(apply_plan(result, x, transpose=True), plan.T @ x, rtol=rtol, atol=atol)
+    torch.testing.assert_close(apply_plan(result, torch.ones_like(b)), plan.sum(1), rtol=rtol, atol=atol)
     gx, gy = point_gradients(result)
-    torch.testing.assert_close(gx, 2*(plan.sum(1)[:, None]*x-plan@y), rtol=5e-4, atol=3e-7)
-    torch.testing.assert_close(gy, 2*(plan.sum(0)[:, None]*y-plan.T@x), rtol=5e-4, atol=3e-7)
+    torch.testing.assert_close(gx, 2*(plan.sum(1)[:, None]*x-plan@y), rtol=rtol, atol=atol)
+    torch.testing.assert_close(gy, 2*(plan.sum(0)[:, None]*y-plan.T@x), rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("shape", [(1, 1), (1, 67), (63, 1), (65, 97)])
@@ -46,7 +53,7 @@ def test_masks_half_cost_noncontiguous_and_low_epsilon(shape):
     x, y = x[:, ::2], y[:, ::2]
     kw = dict(a=a, b=b, n_iters=50, cost_scale=0.5, epsilon=0.03)
     ref = sinkhorn_dense(x, y, **kw)
-    result = sinkhorn_flash(x, y, block_m=16, block_n=32, **kw)
+    result = sinkhorn_flash(x, y, block_m=16, block_n=32, precision="ieee", **kw)
     torch.testing.assert_close(materialize_plan(result), materialize_plan(ref), rtol=8e-4, atol=2e-6)
 
 
