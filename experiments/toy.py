@@ -110,7 +110,7 @@ def main():
     parser.add_argument("--cost-scale", type=float, default=1.0)
     parser.add_argument("--iters", type=int, default=200)
     parser.add_argument("--schedule", choices=("alternating", "symmetric"), default="alternating")
-    parser.add_argument("--precision", choices=("ieee", "tf32x3", "tf32"), default="tf32x3")
+    parser.add_argument("--precision", choices=("ieee", "tf32x3", "tf32"), default="tf32")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--warmups", type=int, default=1,
                         help="Unmeasured compile/cache warmup runs before timing")

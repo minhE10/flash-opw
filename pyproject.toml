@@ -13,7 +13,7 @@ dependencies = ["torch>=2.5", "numpy>=1.24"]
 dev = ["pytest>=8"]
 plots = ["matplotlib>=3.7"]
 phase2 = ["torchvision>=0.20"]
-baselines = ["geomloss>=0.2", "pykeops>=2.2", "ott-jax>=0.4"]
+baselines = ["geomloss==0.2.6", "pykeops==2.3", "ott-jax==0.5.1", "jax[cuda12-local]==0.8.2"]
 
 [tool.setuptools.packages.find]
 include = ["flashopw*", "flashsinkhorn*", "experiments*"]

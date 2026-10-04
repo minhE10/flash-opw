@@ -11,8 +11,8 @@ from flashopw import (sinkhorn_dense, sinkhorn_flash, apply_plan,
 pytestmark = pytest.mark.gpu
 
 
-@pytest.mark.parametrize("d", [1, 2, 7, 32, 64, 129, 256, 512])
-@pytest.mark.parametrize("precision", ["ieee", "tf32x3"])
+@pytest.mark.parametrize("d", [1, 2, 7, 32, 64, 129, 256, 512, 1024])
+@pytest.mark.parametrize("precision", ["ieee", "tf32", "tf32x3"])
 @pytest.mark.parametrize("schedule", ["alternating", "symmetric"])
 def test_updates_vs_float64_reference(d, precision, schedule):
     x, y, a, b = make_dataset("gaussian", 37, 79, d, device="cuda", weighted=True)
@@ -25,7 +25,7 @@ def test_updates_vs_float64_reference(d, precision, schedule):
 
 
 @pytest.mark.parametrize("iterations", [1, 150])
-@pytest.mark.parametrize("precision", ["ieee", "tf32x3"])
+@pytest.mark.parametrize("precision", ["ieee", "tf32", "tf32x3"])
 def test_transport_actual_masses_and_gradients(iterations, precision):
     x, y, a, b = make_dataset("rings", 33, 73, 2, device="cuda", weighted=True)
     result = sinkhorn_flash(x, y, a=a, b=b, n_iters=iterations, epsilon=0.1, precision=precision)

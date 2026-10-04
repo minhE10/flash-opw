@@ -23,6 +23,6 @@ export OPENBLAS_NUM_THREADS=2
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-$PWD/.triton-cache}"
-export KEOPS_CACHE_FOLDER="${KEOPS_CACHE_FOLDER:-$PWD/.keops-cache}"
+export KEOPS_CACHE_FOLDER="${KEOPS_CACHE_FOLDER:-$HOME/.cache/keops2.3}"
 printf 'Using Python: %s\n' "$(command -v python)"
 python -m experiments.paper_benchmarks "$@"

@@ -29,6 +29,12 @@ from .runtime import configure, metadata
 
 
 METHODS = ("flash-sym", "flash-alt", "keops", "tensorized", "jax")
+PANEL_METHODS = {
+    "memory_forward": ("flash-alt", "tensorized"),
+    "memory_backward": ("flash-alt", "tensorized"),
+    "hvp_n": ("flash-sym", "keops", "jax"),
+    "hvp_d": ("flash-sym", "keops", "jax"),
+}
 STYLE = {
     "flash-sym": ("FlashSinkhorn (sym)", "#e67e22", "o"),
     "flash-alt": ("FlashSinkhorn (alt)", "#c0392b", "s"),
@@ -146,7 +152,11 @@ def _flash_operation(method, experiment, x, y, args):
         precision=precision, block_m=args.block_m, block_n=args.block_n,
     )
     if experiment in ("forward_n", "forward_d", "memory_forward"):
-        return lambda: sinkhorn_flash(x, y, **common), "CUDA events; fixed Sinkhorn iterations"
+        def forward():
+            result = sinkhorn_flash(x, y, **common)
+            return (result.a * result.f).sum() + (result.b * result.g).sum()
+
+        return forward, "CUDA events; fixed Sinkhorn iterations + balanced dual cost"
     if experiment in ("backward_n", "backward_d", "memory_backward"):
         tracked_x = x.detach().requires_grad_(True)
 
@@ -171,22 +181,20 @@ def _flash_operation(method, experiment, x, y, args):
     return hvp, f"CUDA events; cached potentials; fixed {args.hvp_cg_iters}-step CG"
 
 
-def _geomloss_imports(backward):
-    if backward:
-        try:
-            from geomloss._legacy.sinkhorn_divergence import (  # type: ignore
-                log_weights, sinkhorn_cost as geomloss_cost, sinkhorn_loop)
-            from geomloss._legacy.sinkhorn_samples import (  # type: ignore
-                lse_genred, softmin_online, softmin_tensorized)
-        except ImportError:
-            from geomloss.sinkhorn_divergence import (  # type: ignore
-                log_weights, sinkhorn_cost as geomloss_cost, sinkhorn_loop)
-            from geomloss.sinkhorn_samples import (  # type: ignore
-                lse_genred, softmin_online, softmin_tensorized)
-        return log_weights, geomloss_cost, sinkhorn_loop, lse_genred, softmin_online, softmin_tensorized
-    from geomloss.sinkhorn_divergence import log_weights, sinkhorn_loop  # type: ignore
-    from geomloss.sinkhorn_samples import lse_genred, softmin_online, softmin_tensorized  # type: ignore
-    return log_weights, None, sinkhorn_loop, lse_genred, softmin_online, softmin_tensorized
+def _geomloss_imports():
+    # The paper environment used the legacy module layout. Newer GeomLoss
+    # releases expose the same low-level routines without the prefix.
+    try:
+        from geomloss._legacy.sinkhorn_divergence import (  # type: ignore
+            log_weights, sinkhorn_cost as geomloss_cost, sinkhorn_loop)
+        from geomloss._legacy.sinkhorn_samples import (  # type: ignore
+            lse_genred, softmin_online, softmin_tensorized)
+    except ImportError:
+        from geomloss.sinkhorn_divergence import (  # type: ignore
+            log_weights, sinkhorn_cost as geomloss_cost, sinkhorn_loop)
+        from geomloss.sinkhorn_samples import (  # type: ignore
+            lse_genred, softmin_online, softmin_tensorized)
+    return log_weights, geomloss_cost, sinkhorn_loop, lse_genred, softmin_online, softmin_tensorized
 
 
 def _geomloss_operation(method, experiment, x, y, args):
@@ -215,9 +223,9 @@ def _geomloss_operation(method, experiment, x, y, args):
             )
 
         return hvp, f"CUDA events; PyKeOps transport; fixed {args.hvp_cg_iters}-step Schur CG"
-    backward = experiment in ("backward_n", "backward_d", "memory_backward") or is_hvp
+    backward = experiment in ("backward_n", "backward_d", "memory_backward")
     log_weights, geomloss_cost, sinkhorn_loop, lse_genred, softmin_online, softmin_tensorized = \
-        _geomloss_imports(backward)
+        _geomloss_imports()
     a = x.new_full((len(x),), 1.0 / len(x))
     b = y.new_full((len(y),), 1.0 / len(y))
     iterations = args.hvp_sinkhorn_iters if is_hvp else args.iters
@@ -249,7 +257,16 @@ def _geomloss_operation(method, experiment, x, y, args):
             )
 
     if not backward:
-        return lambda: potentials(False), "CUDA events; low-level GeomLoss fixed-iteration loop"
+        def forward():
+            _, _, g_ab, f_ba = potentials(False)
+            if method == "tensorized":
+                g_ab, f_ba = g_ab.squeeze(0), f_ba.squeeze(0)
+            return geomloss_cost(
+                args.epsilon, None, a, b, None, None, g_ab, f_ba,
+                batch=False, debias=False, potentials=False,
+            )
+
+        return forward, "CUDA events; low-level GeomLoss fixed-iteration loop + dual cost"
 
     def loss_function():
         _, _, g_ab, f_ba = potentials(True)
@@ -445,17 +462,22 @@ def _parse_args():
     parser.add_argument("--methods", nargs="+", choices=METHODS, default=list(METHODS))
     parser.add_argument("--n-sizes", type=int, nargs="+", default=[5000, 10000, 20000, 30000, 40000, 50000])
     parser.add_argument("--d-sizes", type=int, nargs="+", default=[4, 8, 16, 32, 64, 128, 256, 512, 1024])
-    parser.add_argument("--hvp-n-sizes", type=int, nargs="+", default=[5000, 6000, 7000, 8000, 9000, 10000])
+    parser.add_argument("--hvp-n-sizes", type=int, nargs="+",
+                        default=[5000, 6000, 7000, 8000, 9000, 10000, 20000, 30000, 40000, 50000])
     parser.add_argument("--hvp-d-sizes", type=int, nargs="+", default=[4, 8, 16, 32, 64, 128, 256, 512])
     parser.add_argument("--dimension-n", type=int, default=20000)
     parser.add_argument("--hvp-dimension-n", type=int, default=10000)
     parser.add_argument("--hvp-fixed-d", type=int, default=64)
+    parser.add_argument("--hvp-baseline-max-n", type=int, default=10000,
+                        help="paper plotting range for KeOps/JAX in the HVP n sweep")
+    parser.add_argument("--hvp-baseline-max-d", type=int, default=128,
+                        help="paper plotting range for KeOps/JAX in the HVP d sweep")
     parser.add_argument("--epsilon", type=float, default=0.1)
     parser.add_argument("--iters", type=int, default=10)
     parser.add_argument("--hvp-sinkhorn-iters", type=int, default=100)
     parser.add_argument("--hvp-cg-iters", type=int, default=50)
     parser.add_argument("--hvp-damping", type=float, default=1e-5)
-    parser.add_argument("--precision", choices=("ieee", "tf32x3", "tf32"), default="tf32x3")
+    parser.add_argument("--precision", choices=("ieee", "tf32x3", "tf32"), default="tf32")
     parser.add_argument("--warmups", type=int, default=10)
     parser.add_argument("--forward-repeats", type=int, default=50)
     parser.add_argument("--backward-repeats", type=int, default=30)
@@ -469,7 +491,8 @@ def _parse_args():
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     all_sizes = args.n_sizes + args.d_sizes + args.hvp_n_sizes + args.hvp_d_sizes
-    if min(all_sizes + [args.dimension_n, args.hvp_dimension_n, args.hvp_fixed_d]) < 1:
+    if min(all_sizes + [args.dimension_n, args.hvp_dimension_n, args.hvp_fixed_d,
+                        args.hvp_baseline_max_n, args.hvp_baseline_max_d]) < 1:
         parser.error("sizes must be positive")
     if max(args.d_sizes + args.hvp_d_sizes + [args.hvp_fixed_d]) > 1024:
         parser.error("this FlashSinkhorn implementation supports d <= 1024")
@@ -496,6 +519,13 @@ def main():
         "backward": "source x only",
         "hvp": "strict FP32; damping=1e-5; fixed 50-step CG by default",
         "memory": "total PyTorch peak allocated, including live inputs",
+        "precision": "TF32 forward/backward; strict FP32 HVP by default",
+        "panel_methods": PANEL_METHODS,
+        "hvp_baseline_range": {
+            "max_n": args.hvp_baseline_max_n,
+            "max_d": args.hvp_baseline_max_d,
+        },
+        "tiles": "fixed RTX-safe upper bounds; no A100 autotuning",
     }
     (output / "environment.json").write_text(json.dumps(environment, indent=2), encoding="utf-8")
     rows = []
@@ -508,14 +538,22 @@ def main():
             y = torch.rand((m, d), device=device, dtype=torch.float32, generator=generator)
             for method in args.methods:
                 operation = None
-                if experiment.startswith("memory") and method in ("keops", "jax"):
+                applicable = PANEL_METHODS.get(experiment, METHODS)
+                if method not in applicable:
                     _record_failure(rows, experiment, axis_value, n, m, d, method,
-                                    "not_measured", "allocator-incompatible peak memory; omitted instead of reporting zero")
+                                    "not_applicable", "method omitted from this panel in the paper")
                     _write_results(output, rows)
                     continue
-                if experiment.startswith("hvp") and method == "tensorized":
+                if (experiment == "hvp_n" and method in ("keops", "jax") and
+                        n > args.hvp_baseline_max_n):
                     _record_failure(rows, experiment, axis_value, n, m, d, method,
-                                    "not_applicable", "the paper HVP panels omit the dense Tensorized baseline")
+                                    "outside_paper_range", "baseline omitted beyond the paper's HVP n range")
+                    _write_results(output, rows)
+                    continue
+                if (experiment == "hvp_d" and method in ("keops", "jax") and
+                        d > args.hvp_baseline_max_d):
+                    _record_failure(rows, experiment, axis_value, n, m, d, method,
+                                    "outside_paper_range", "baseline omitted beyond the paper's HVP d range")
                     _write_results(output, rows)
                     continue
                 backward = experiment in ("backward_n", "backward_d", "memory_backward")

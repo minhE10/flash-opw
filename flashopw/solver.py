@@ -149,7 +149,7 @@ def _sinkhorn_streaming(x, y, *, a, b, epsilon, cost_scale, n_iters, schedule,
         if precision not in ("ieee", "tf32x3", "tf32"):
             raise ValueError("precision must be ieee, tf32x3 or tf32")
         try:
-            from .triton_kernels import launch_config, update
+            from .triton_kernels import launch_config, symmetric_update, update
         except ImportError as exc:
             raise RuntimeError("Triton is required: run in the server's Linux PyTorch CUDA environment") from exc
         block_m, block_n, _ = launch_config(x.shape[1], block_m, block_n)
@@ -161,9 +161,14 @@ def _sinkhorn_streaming(x, y, *, a, b, epsilon, cost_scale, n_iters, schedule,
     result = SinkhornResult(x, y, a, b, u, v, epsilon, cost_scale, 0, backend, precision, block_m, block_n)
     for iteration in range(1, n_iters + 1):
         if backend == "triton":
-            update(x, y, u, v, loga, unew, scale, schedule == "symmetric", precision, block_m, block_n)
-            update(y, x, v, unew if schedule == "alternating" else u, logb, vnew,
-                   scale, schedule == "symmetric", precision, block_m, block_n)
+            if schedule == "symmetric":
+                symmetric_update(
+                    x, y, u, v, loga, logb, unew, vnew,
+                    scale, precision, block_m, block_n,
+                )
+            else:
+                update(x, y, u, v, loga, unew, scale, False, precision, block_m, block_n)
+                update(y, x, v, unew, logb, vnew, scale, False, precision, block_m, block_n)
             u, unew, v, vnew = unew, u, vnew, v
         else:
             next_u = _online_update(x, y, v, loga, scale, block_m, block_n)
@@ -182,11 +187,12 @@ def _sinkhorn_streaming(x, y, *, a, b, epsilon, cost_scale, n_iters, schedule,
 
 def sinkhorn_flash(x, y, *, a=None, b=None, epsilon=0.2, cost_scale=1.0,
                    n_iters=200, schedule="alternating", tol=None, check_every=20,
-                   precision="tf32x3", block_m=32, block_n=64):
+                   precision="tf32", block_m=32, block_n=64):
     """Fused row-stationary Triton Sinkhorn; O((n+m)d) global memory.
 
-    Defaults use FP32 storage/accumulation and tf32x3 dot products. ieee is the
-    strict FP32 diagnostic mode. Tiles are upper bounds and are reduced for
+    Defaults use FP32 storage/accumulation and TF32 dot products, matching the
+    paper's forward/backward protocol. ``tf32x3`` is the higher-accuracy option
+    and ``ieee`` is strict FP32. Tiles are upper bounds and are reduced for
     large feature dimensions. No autotuning or multi-GPU work is launched.
     """
     return _sinkhorn_streaming(x, y, a=a, b=b, epsilon=epsilon, cost_scale=cost_scale,

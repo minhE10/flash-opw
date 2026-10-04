@@ -134,7 +134,7 @@ def main():
     parser.add_argument("--epsilon", type=float, default=0.1)
     parser.add_argument("--iters", type=int, default=10)
     parser.add_argument("--schedule", choices=("alternating", "symmetric"), default="symmetric")
-    parser.add_argument("--precision", choices=("ieee", "tf32x3", "tf32"), default="tf32x3")
+    parser.add_argument("--precision", choices=("ieee", "tf32x3", "tf32"), default="tf32")
     parser.add_argument("--warmups", type=int, default=10)
     parser.add_argument("--repeats", type=int, default=50)
     parser.add_argument("--seed", type=int, default=42)

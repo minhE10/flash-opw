@@ -18,7 +18,7 @@ def main():
     x, y, a, b = make_dataset("gaussian", 37, 79, d=5, weighted=True, device=device)
     expected = sinkhorn_dense(x.double(), y.double(), a=a.double() / a.double().sum(),
                               b=b.double() / b.double().sum(), n_iters=100)
-    for precision in ("ieee", "tf32x3"):
+    for precision in ("ieee", "tf32", "tf32x3"):
         actual = sinkhorn_flash(x, y, a=a, b=b, n_iters=100, precision=precision)
         plan = materialize_plan(actual)
         torch.testing.assert_close(plan.double(), materialize_plan(expected), rtol=5e-4, atol=2e-7)

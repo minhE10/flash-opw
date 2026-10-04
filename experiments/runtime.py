@@ -35,6 +35,12 @@ def metadata(device):
             "torch_cuda": torch.version.cuda, "device": str(device),
             "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
             "threads": torch.get_num_threads()}
+    info["packages"] = {}
+    for package in ("triton", "geomloss", "pykeops", "ott-jax", "jax", "jaxlib"):
+        try:
+            info["packages"][package] = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            info["packages"][package] = None
     try:
         info["git_commit"] = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL).strip()
@@ -42,10 +48,7 @@ def metadata(device):
             ["git", "status", "--porcelain"], text=True, stderr=subprocess.DEVNULL).strip())
     except (OSError, subprocess.CalledProcessError):
         info["git_commit"] = None
-    try:
-        info["triton"] = importlib.metadata.version("triton")
-    except importlib.metadata.PackageNotFoundError:
-        info["triton"] = None
+    info["triton"] = info["packages"]["triton"]
     if device.type == "cuda":
         props = torch.cuda.get_device_properties(device)
         free, total = torch.cuda.mem_get_info(device)

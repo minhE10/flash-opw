@@ -15,7 +15,7 @@ import sys
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--arch", type=int, default=120)
-    parser.add_argument("--dims", type=int, nargs="+", default=[2, 7, 64, 65, 129, 256, 512])
+    parser.add_argument("--dims", type=int, nargs="+", default=[2, 7, 64, 65, 129, 256, 512, 1024])
     parser.add_argument("--output", type=Path, default=Path("outputs/offline-compile.json"))
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
@@ -38,7 +38,7 @@ def main():
             kernels.hadamard_launch_config(d, d, bm, bn) for bm, bn in ((16, 32), (32, 64))
         }
         for bm, bn, stages in sorted(regular_configurations | hadamard_configurations):
-            for precision in ("ieee", "tf32x3"):
+            for precision in ("ieee", "tf32", "tf32x3"):
                 base = dict(N=37, M=79, D=d, SCALE=10.0, PRECISION=precision,
                             BM=bm, BN=bn, BD=kernels.feature_block(d))
                 variants = []
@@ -46,8 +46,8 @@ def main():
                     variants.extend([
                         (kernels._update_kernel, ("Q", "K", "OLD", "BIAS", "LOGW", "OUT"),
                          dict(SYMMETRIC=False)),
-                        (kernels._update_kernel, ("Q", "K", "OLD", "BIAS", "LOGW", "OUT"),
-                         dict(SYMMETRIC=True)),
+                        (kernels._symmetric_update_kernel,
+                         ("Q", "K", "U", "V", "LOGA", "LOGB", "UOUT", "VOUT"), {}),
                         (kernels._apply_kernel, ("Q", "K", "U", "V", "VALUES", "OUT"),
                          dict(P=35, BP=32)),
                     ])

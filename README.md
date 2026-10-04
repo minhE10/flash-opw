@@ -174,6 +174,10 @@ python -m pip install -e '.[dev,plots,baselines]'
 python -c "import torch, pykeops, jax; print(torch.__version__); print(pykeops.__version__); print(jax.devices())"
 ```
 
+The baseline extra pins the paper-compatible package versions and uses JAX's
+`cuda12-local` plugin so the server's CUDA 12.8/cuDNN installation is reused;
+it does not replace PyTorch's pinned NVIDIA CUDA wheels.
+
 After one GPU has been allocated, run the complete synthetic benchmark:
 
 ```bash
@@ -184,7 +188,9 @@ The defaults match Appendix H of the paper: points sampled uniformly from
 `[0,1]^d`, uniform marginals, full squared-Euclidean cost, `epsilon=0.1`, ten
 fixed forward/backward iterations, and 100 Sinkhorn plus 50 fixed CG iterations
 for HVP. It uses 10 warmups and 50/30/20 measured forward/backward/HVP runs,
-with strict FP32 for HVP. Sizes run from large to small. On a 16 GB RTX 5080,
+with TF32 for forward/backward and strict FP32 for HVP. Sizes run from large to
+small. The symmetric schedule updates both potentials in one fused Triton
+launch. On a 16 GB RTX 5080,
 known-quadratic Tensorized cases are skipped before OOM according to
 `--max-tensorized-mib`; the CSV records every skip or baseline failure.
 
@@ -204,7 +210,15 @@ each method/size. KeOps and JAX use streaming online backends; Tensorized is
 omitted from HVP as in the paper, and KeOps/JAX are omitted from PyTorch peak
 memory plots because their external allocators would make those values invalid.
 Absolute runtimes will not match the paper's A100-80GB; compare curve shape,
-OOM boundary, and speedup ratios instead.
+OOM boundary, and speedup ratios instead. This implementation deliberately uses
+fixed RTX-safe tile upper bounds instead of the paper's A100 autotuning search;
+this hardware-specific difference is recorded in `environment.json` and can
+change absolute timings.
+
+The HVP defaults reproduce the plotting ranges: FlashSinkhorn extends to
+`n=50,000` and `d=512`, while KeOps/JAX stop at `n=10,000` and `d=128`.
+Memory panels contain only alternating FlashSinkhorn and Tensorized, and HVP
+panels contain symmetric FlashSinkhorn, KeOps and JAX, matching the paper.
 
 ## Kết quả và cách so sánh
 
@@ -277,7 +291,7 @@ grad_x, grad_y = point_gradients(result)  # envelope gradient khi đã hội t�
 x = x.requires_grad_(True)
 loss = sinkhorn_cost(
     x, y, epsilon=0.2, n_iters=300, tol=1e-4,
-    backend="flash", precision="tf32x3",
+    backend="flash", precision="tf32",
 )
 grad_x = torch.autograd.grad(loss, x, create_graph=True)[0]
 direction = torch.randn_like(x)

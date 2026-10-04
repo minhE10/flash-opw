@@ -37,7 +37,7 @@ python -m experiments.toy \
   --epsilon 0.1 \
   --iters 10 \
   --schedule symmetric \
-  --precision tf32x3 \
+  --precision tf32 \
   --warmups 10 \
   --repeats 50 \
   --threads 2 \

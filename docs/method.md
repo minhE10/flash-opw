@@ -41,7 +41,8 @@ and averages each old/new update with factor 1/2; writes go to separate buffers.
 
 | Paper component | Implementation |
 | --- | --- |
-| Algorithms 1 and 3, streamed LSE half-steps | `flashopw/triton_kernels.py::_update_kernel` |
+| Algorithm 1, alternating streamed LSE half-steps | `flashopw/triton_kernels.py::_update_kernel` |
+| Algorithm 3, one-launch symmetric update | `flashopw/triton_kernels.py::_symmetric_update_kernel` |
 | Algorithm 2, streamed `P V` | `flashopw/triton_kernels.py::_apply_kernel` |
 | Adjoint `P^T V` | Same kernel, swapping source/target and potentials |
 | Theorem 5 Hadamard transport | `flashopw/triton_kernels.py::_hadamard_apply_kernel` |
@@ -53,15 +54,17 @@ and averages each old/new update with factor 1/2; writes go to separate buffers.
 Each query tile remains resident while key tiles stream. The running row maximum
 and rescaled exponential sum prevent exponent overflow. We fold the marginal
 logarithm into the potentials so each key tile loads a single bias. `tl.dot`
-uses FP32 inputs/accumulators; `tf32x3` is the default and `ieee` is available
-for checking accuracy. Plain `tf32` is opt-in and must be validated for your
-epsilon/data. See [Triton's dot precision documentation](https://triton-lang.org/main/python-api/generated/triton.language.dot.html).
+uses FP32 storage/accumulators; `tf32` is the paper-compatible forward/backward
+default, `tf32x3` is the higher-accuracy option, and `ieee` is used for strict
+FP32 checks and HVP. See [Triton's dot precision documentation](https://triton-lang.org/main/python-api/generated/triton.language.dot.html).
 
 Tile arguments are upper bounds. For d <= 64, launches cap tiles at 32x64 with
 two stages; for d > 64 they cap at 16x32 with one stage. This controls the extra
-shared buffers required by tf32x3 on consumer GPUs. Offline compilation checks
-a 64 KiB shared-memory budget for the covered launch configurations; this is
-separate from the global VRAM cap. Effective tiles are recorded in results.
+shared buffers required by high-accuracy dot products on consumer GPUs. Unlike
+the paper's A100 run, this RTX-oriented implementation does not autotune tiles.
+Offline compilation checks a 64 KiB shared-memory budget for the covered launch
+configurations; this is separate from the global VRAM cap. Effective tiles are
+recorded in results.
 
 Transport application keeps an online rescaled weighted sum and restores its
 scale using `exp(u + running_max)`. This includes the **actual row mass** even

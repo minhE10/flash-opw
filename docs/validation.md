@@ -70,11 +70,12 @@ does not model GPU scheduling, resource limits or Tensor Core rounding.
 
 ```text
 python scripts/compile_kernels.py --arch 120 --output outputs/offline-compile-hvp-rtx5080.json
-PASS: compiled 78 variants for sm_120
+PASS: compiled 129 variants for sm_120
 ```
 
-Triton 3.8.0 generated nonempty CUDA binaries for update (both schedules) and
-transport kernels in `ieee` and `tf32x3`, with d in {2, 7, 64, 65, 129, 256, 512}.
+Triton 3.8.0 generated nonempty CUDA binaries for alternating update,
+one-launch symmetric update and transport kernels in `ieee`, `tf32` and
+`tf32x3`, with d in {2, 7, 64, 65, 129, 256, 512, 1024}.
 The effective tile/pipeline choices all used **at most 65,536 bytes of shared
 memory**. Initial larger configurations exceeded that budget; the final launch
 policy caps high-dimensional tiles at 16x32 and uses one pipeline stage. The

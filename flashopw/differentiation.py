@@ -254,7 +254,7 @@ class _SinkhornCost(torch.autograd.Function):
 
 def sinkhorn_cost(x, y, *, a=None, b=None, epsilon=0.2, cost_scale=1.0,
                   n_iters=200, schedule="alternating", tol=None, check_every=20,
-                  backend="flash", precision="tf32x3", block_m=32, block_n=64,
+                  backend="flash", precision="tf32", block_m=32, block_n=64,
                   hvp_damping=1e-5, hvp_max_cg_iters=50,
                   hvp_cg_rtol=1e-6, hvp_cg_atol=0.0):
     """Differentiable regularized OT cost with analytic backward and x-HVP.
