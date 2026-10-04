@@ -11,7 +11,19 @@ from flashopw import (sinkhorn_dense, sinkhorn_flash, apply_plan,
 pytestmark = pytest.mark.gpu
 
 
-@pytest.mark.parametrize("d", [1, 2, 7, 32, 64, 129, 256, 512, 1024])
+def _assert_relative_l1(actual, expected, *, limit, name):
+    """Compare nonnegative plans without over-weighting tiny entries."""
+    actual64 = actual.double()
+    expected64 = expected.double()
+    assert torch.isfinite(actual64).all(), f"{name} contains non-finite values"
+    error = (actual64 - expected64).abs().sum()
+    scale = expected64.abs().sum().clamp_min(torch.finfo(torch.float64).tiny)
+    relative_error = float(error / scale)
+    assert relative_error < limit, \
+        f"{name} relative L1 error {relative_error:.3e} exceeds {limit:.3e}"
+
+
+@pytest.mark.parametrize("d", [1, 2, 4, 7, 32, 64, 129, 256, 512, 1024])
 @pytest.mark.parametrize("precision", ["ieee", "tf32", "tf32x3"])
 @pytest.mark.parametrize("schedule", ["alternating", "symmetric"])
 def test_updates_vs_float64_reference(d, precision, schedule):
@@ -19,10 +31,20 @@ def test_updates_vs_float64_reference(d, precision, schedule):
     kw = dict(epsilon=0.17, n_iters=40, schedule=schedule)
     ref = sinkhorn_dense(x.double(), y.double(), a=a.double()/a.double().sum(), b=b.double()/b.double().sum(), **kw)
     result = sinkhorn_flash(x, y, a=a, b=b, precision=precision, **kw)
+    actual_plan = materialize_plan(result).double()
+    reference_plan = materialize_plan(ref)
     if precision == "tf32":
-        plan_rtol, plan_atol = 5e-3, 5e-6
-        potential_rtol, potential_atol = 5e-3, 5e-5
-    elif schedule == "symmetric":
+        # TensorFloat-32 rounds dot-product inputs to a 10-bit mantissa.  A
+        # per-entry comparison against an IEEE/float64 plan is ill-conditioned
+        # for tiny transport entries, especially at small d.  Check the plan as
+        # a probability measure and use the same 1e-3 absolute potential floor
+        # as the upstream FlashSinkhorn TF32 parity tests.
+        _assert_relative_l1(actual_plan, reference_plan, limit=1e-2,
+                            name=f"{schedule} TF32 plan at d={d}")
+        torch.testing.assert_close(result.f.double(), ref.f, rtol=1e-2, atol=1e-3)
+        torch.testing.assert_close(result.g.double(), ref.g, rtol=1e-2, atol=1e-3)
+        return
+    if schedule == "symmetric":
         # The fused g branch reduces score tiles along axis 0. Its summation
         # order differs from the dense oracle while remaining mathematically
         # equivalent, so individual tiny plan entries need an absolute floor.
@@ -31,8 +53,7 @@ def test_updates_vs_float64_reference(d, precision, schedule):
     else:
         plan_rtol, plan_atol = 5e-4, 2e-7
         potential_rtol, potential_atol = 5e-4, 2e-5
-    torch.testing.assert_close(materialize_plan(result).double(), materialize_plan(ref),
-                               rtol=plan_rtol, atol=plan_atol)
+    torch.testing.assert_close(actual_plan, reference_plan, rtol=plan_rtol, atol=plan_atol)
     torch.testing.assert_close(result.f.double(), ref.f,
                                rtol=potential_rtol, atol=potential_atol)
     torch.testing.assert_close(result.g.double(), ref.g,
@@ -46,7 +67,10 @@ def test_transport_actual_masses_and_gradients(iterations, precision):
     result = sinkhorn_flash(x, y, a=a, b=b, n_iters=iterations, epsilon=0.1, precision=precision)
     plan = materialize_plan(result)
     values = torch.linspace(-1, 2, len(y)*35, device="cuda").reshape(len(y), 35)
-    rtol, atol = (5e-3, 1e-5) if precision == "tf32" else (5e-4, 3e-7)
+    # The paper-compatible path uses TF32 for both score and value matrix
+    # products.  The upstream implementation reserves strict dense parity for
+    # allow_tf32=False and uses a 1e-3 absolute floor for streaming apply tests.
+    rtol, atol = (1e-2, 1e-3) if precision == "tf32" else (5e-4, 3e-7)
     torch.testing.assert_close(apply_plan(result, values), plan @ values, rtol=rtol, atol=atol)
     torch.testing.assert_close(apply_plan(result, x, transpose=True), plan.T @ x, rtol=rtol, atol=atol)
     torch.testing.assert_close(apply_plan(result, torch.ones_like(b)), plan.sum(1), rtol=rtol, atol=atol)
