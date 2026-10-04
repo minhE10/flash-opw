@@ -37,7 +37,9 @@ def main():
         torch.testing.assert_close(apply_plan(actual, x, transpose=True), plan.T @ x,
                                    rtol=rtol, atol=transport_atol)
         stats = diagnostics(actual)
-        assert max(stats["row_l1"], stats["col_l1"]) < 1e-4, stats
+        residual_tol = 1e-3 if precision == "tf32" else 1e-4
+        assert max(stats["row_l1"], stats["col_l1"]) < residual_tol, \
+            f"precision={precision}, tolerance={residual_tol}, diagnostics={stats}"
         print(precision, json.dumps(stats, indent=2))
     print("PASS: Triton updates, P@V and P.T@V agree with the dense reference.")
 
