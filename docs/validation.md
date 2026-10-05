@@ -227,3 +227,50 @@ using the same stored FP32 points/potentials (cast to float64 without another
 Sinkhorn solve) differed from Torch FP32 by at most 2.9646573e-5 and
 1.1455654e-5 respectively; all entries met the unchanged test tolerances.
 These are CPU diagnostics, not confirmation of GPU parity or performance.
+
+## Confirmed server validation and ablation, 2026-10-05
+
+The user reran `validate_paper_optimizations.sh` on allocated physical GPU 1
+after pulling `283ee1c`. JAX reported `CudaDevice(id=0)` within that allocation.
+The supplied log reports **133 passed, 1 warning in 49.87s**, including the
+previously failing custom JAX HVP and all new reciprocity/50-step tests.
+The OTT deprecation warning remained. The subsequent ablation completed and
+printed the output directory:
+
+```text
+/home/doanpt/minh.nd/flash-opw/outputs/kernel_20261005T084531.029667Z
+```
+
+The following are rounded mean CUDA-event timings from the supplied console
+log. Speedup is generic mean divided by tuned mean. All modes use the same
+revision and input tensors; generic is the retained implementation route,
+not an independently measured checkout of an older commit. No comparison to
+KeOps, JAX, Tensorized or paper runtime tables is implied by these ablations.
+
+| n=m | d | Operation | Generic ms | Specialized ms | Tuned ms | Generic/tuned | Tuned relative L2 |
+| ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 10,000 | 64 | Vector transport | 3.389 | 2.417 | 2.179 | 1.555x | 2.07e-7 |
+| 10,000 | 64 | Source gradient | 1.400 | 0.948 | 0.954 | 1.468x | 2.68e-4 |
+| 10,000 | 64 | Forward + backward | 9.402 | 9.103 | 8.416 | 1.117x | 2.68e-4 |
+| 10,000 | 64 | HVP | 368.687 | 266.469 | 236.366 | 1.560x | 9.44e-6 |
+| 20,000 | 1024 | Vector transport | 246.663 | 239.671 | 128.272 | 1.923x | 2.16e-8 |
+| 20,000 | 1024 | Source gradient | 326.351 | 82.200 | 69.621 | 4.688x | 1.37e-4 |
+| 20,000 | 1024 | Forward + backward | 989.600 | 742.054 | 539.367 | 1.835x | 1.37e-4 |
+
+The specialized wide gradient is already 3.970x faster than generic; tuning
+further improves it to 4.688x. The complete wide forward/backward reduction
+is 45.50%, smaller than the isolated gradient reduction because it includes
+the Sinkhorn solve. Tuning has little visible effect on the d=64 gradient
+(0.948 versus 0.954 ms); samples/dispersion are needed to interpret that
+small difference. HVP at d=1024 was omitted by the ablation's default
+`--hvp-max-d 128`, so there is no HVP result at that dimension.
+
+All reported relative L2 errors meet the existing ablation thresholds:
+5e-3 for vector/HVP and 1e-2 for TF32 gradient/forward-backward. The supplied
+console log does not include environment.json, timing samples/dispersion,
+coupling/CG diagnostics, selected tuning configurations or profiler traces.
+Those server artifacts are still needed to investigate the performance
+mechanism and run stability. The profiler warning alone does not establish
+missing data; traces have not been inspected locally. The eight-panel
+cross-method benchmark remains the next experiment, using the documented
+unchanged mathematical protocol and a fresh output directory.
