@@ -186,3 +186,44 @@ The new server scripts pass `bash -n`; Python compilation and `git diff --check`
 pass. The transfer patch is checked and applied to an extracted pristine
 `fec70ce` tree, and all changed files are compared with the local working tree.
 See [server commands and interpretation](paper_reproduction.md).
+
+## JAX GPU parity follow-up, 2026-10-05
+
+The user supplied the server validation log after pulling `81b6bbd`:
+`126 passed, 1 failed, 1 warning in 264.99s`. The only reported failure was
+the custom matrix-free JAX HVP on uniform 37x79 points at d=65, epsilon 0.1,
+with 12 CG steps. It differed from the CPU dense FP32 reference at 183/2405
+entries, with maximum absolute difference 3.3867359e-4. This is user-supplied
+GPU evidence; no remote execution was performed here. The validation script
+stops on pytest failure, so this log does not establish ablation timings.
+
+Inspection found that the custom implementation recomputed the transposed
+coupling with reversed potential addition order and a different score tile
+shape. On the local uniform fixture, reversed addition alone changes logits
+by up to 7.6293945e-6. The correction evaluates identical source-by-target
+tiles for both directions, adds source u before target v, and preserves FP32
+rounding points with optimization barriers. Matmul precision is explicit
+even under JAX's default precision context. The custom HVP also now uses the
+same persistent device-side CG activity guard as the external adapter.
+Whether these changes fully resolve the observed GPU failure needs a server
+rerun; the GPU discrepancy was not reproduced on the local CPU backend.
+
+The original unnormalized test direction and elementwise rtol=3e-3,
+atol=3e-5 remain unchanged. Coverage now includes 12 and 50 CG steps, a
+relative L2 requirement below 3e-3, and exact forward/transpose plan parity
+for source/target tiles 4x8, 16x32 and 64x256 with partial tiles. Local checks
+in the same isolated baseline environment report:
+
+```text
+FLASHOPW_OTT_HESSIAN_PATH=outputs/ott-hessian-reference
+.venv-baselines/Scripts/python -m pytest -q
+54 passed, 118 skipped, 1 warning in 63.83s
+```
+
+The 118 GPU tests remain skipped locally. On the failing fixture, local JAX
+FP32 versus Torch FP32 maximum absolute HVP differences were 2.4795532e-5
+at 12 steps and 1.2397766e-5 at 50 steps. A separate Torch float64 calculation
+using the same stored FP32 points/potentials (cast to float64 without another
+Sinkhorn solve) differed from Torch FP32 by at most 2.9646573e-5 and
+1.1455654e-5 respectively; all entries met the unchanged test tolerances.
+These are CPU diagnostics, not confirmation of GPU parity or performance.

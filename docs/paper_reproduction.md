@@ -67,6 +67,14 @@ custom JAX implementation, and the plots label it accordingly. Neither baseline
 is `linearize(grad(loss))`. The setup script downloads source only; benchmark
 dependencies come from the isolated environment's `baselines` extra.
 
+The custom matrix-free implementation evaluates source-by-target score tiles
+in the same orientation and with the same FP32 rounding order for `P` and
+`P.T`. Explicit highest matmul precision and
+[JAX optimization barriers](https://docs.jax.dev/en/latest/_autosummary/jax.lax.optimization_barrier.html)
+preserve these rounding points under JIT. Its CG uses the guarded fixed-step routine
+shared with the OTT-Hessian adapter. These changes can affect custom JAX
+timings; rerun that backend rather than mixing its old and new results.
+
 ## Server sequence
 
 Pull the committed changes on the server before installing dependencies:

@@ -60,7 +60,8 @@ def metadata(device):
     info["source_sha256"] = {}
     for relative in ("flashopw/triton_kernels.py", "flashopw/kernel_tuning.py",
                      "flashopw/transport.py", "flashopw/differentiation.py",
-                     "experiments/paper_benchmarks.py", "experiments/ott_hessian.py"):
+                     "experiments/paper_benchmarks.py", "experiments/ott_hessian.py",
+                     "experiments/jax_hvp.py"):
         path = root / relative
         if path.is_file():
             content = path.read_bytes().replace(b"\r\n", b"\n")
