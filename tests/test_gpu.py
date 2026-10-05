@@ -151,3 +151,58 @@ def test_flash_hvp_and_double_backward_against_dense():
     gradient = torch.autograd.grad(loss, tracked_x, create_graph=True)[0]
     auto_hvp = torch.autograd.grad((gradient * direction).sum(), tracked_x)[0]
     torch.testing.assert_close(auto_hvp, actual, rtol=8e-4, atol=3e-6)
+
+
+@pytest.mark.parametrize("d", [1, 64, 129, 1024])
+@pytest.mark.parametrize("shape", [(1, 1), (1, 67), (63, 1), (37, 79)])
+def test_signed_vector_transport_and_transpose(d, shape):
+    n, m = shape
+    x, y, a, b = make_dataset("gaussian", n, m, d, device="cuda", weighted=True)
+    result = sinkhorn_flash(x, y, a=a, b=b, epsilon=0.7,
+                            n_iters=1, precision="ieee")
+    plan = materialize_plan(result)
+    for transpose in (False, True):
+        count = n if transpose else m
+        # A strided, signed vector exercises packing and cancellation.
+        values = torch.linspace(-2, 1, count * 2, device="cuda")[::2]
+        expected = (plan.T if transpose else plan) @ values
+        actual = apply_plan(result, values, transpose=transpose)
+        torch.testing.assert_close(actual, expected, rtol=1e-3, atol=1e-5)
+        column = apply_plan(result, values[:, None], transpose=transpose)
+        assert column.shape == (len(expected), 1)
+        torch.testing.assert_close(column[:, 0], expected, rtol=1e-3, atol=1e-5)
+
+
+@pytest.mark.parametrize("d", [64, 129, 512, 1024])
+@pytest.mark.parametrize("iterations", [1, 20])
+@pytest.mark.parametrize("precision", ["ieee", "tf32", "tf32x3"])
+def test_fused_gradient_with_actual_unconverged_masses(d, iterations, precision):
+    x, y, a, b = make_dataset("gaussian", 17, 29, d, device="cuda", weighted=True)
+    result = sinkhorn_flash(x, y, a=a, b=b, epsilon=0.7, cost_scale=0.5,
+                            n_iters=iterations, precision=precision)
+    plan = materialize_plan(result)
+    gx, gy = point_gradients(result)
+    rtol, atol = (1e-2, 1e-3) if precision == "tf32" else (2e-3, 2e-5)
+    torch.testing.assert_close(gx, plan.sum(1)[:, None]*x-plan@y, rtol=rtol, atol=atol)
+    torch.testing.assert_close(gy, plan.sum(0)[:, None]*y-plan.T@x, rtol=rtol, atol=atol)
+
+
+def test_tuned_kernels_match_dense_and_fixed_step_hvp(monkeypatch):
+    monkeypatch.setenv("FLASHOPW_AUTOTUNE", "1")
+    x, y, a, b = make_dataset("gaussian", 17, 29, 65, device="cuda", weighted=True)
+    result = sinkhorn_flash(x, y, a=a, b=b, epsilon=0.7,
+                            n_iters=20, precision="ieee")
+    from dataclasses import replace
+    dense = replace(result, backend="dense")
+    gx, gy = point_gradients(result)
+    dx, dy = point_gradients(dense)
+    torch.testing.assert_close(gx, dx, rtol=2e-3, atol=2e-5)
+    torch.testing.assert_close(gy, dy, rtol=2e-3, atol=2e-5)
+    direction = torch.randn_like(x)
+    kwargs = dict(damping=1e-5, max_cg_iters=50, cg_rtol=0, cg_atol=0)
+    torch.testing.assert_close(hessian_vector_product(result, direction, **kwargs),
+                               hessian_vector_product(dense, direction, **kwargs),
+                               rtol=5e-3, atol=3e-5)
+    from flashopw.kernel_tuning import tuning_records
+    records = tuning_records()
+    assert records and all(r["selected"]["shared_bytes"] <= r["shared_budget_bytes"] for r in records)

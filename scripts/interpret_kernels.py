@@ -39,6 +39,7 @@ def main():
     sys.modules[spec.name] = kernels
     spec.loader.exec_module(kernels)
     rng = np.random.default_rng(42)
+    extra_rng = np.random.default_rng(43)
     count, max_error = 0, 0.0
     for n, m, d in ((1, 1, 1), (1, 67, 2), (63, 1, 7), (37, 79, 7),
                     (33, 65, 64), (17, 35, 129), (5, 9, 512), (3, 5, 1024)):
@@ -82,6 +83,10 @@ def main():
                 expected = a[:, None]*b[None, :]*np.exp((f[:, None]+g[None, :]-cost)/eps)
                 np.testing.assert_allclose(actual, expected, rtol=8e-4, atol=3e-6)
                 max_error = max(max_error, float(np.abs(actual-expected).max()))
+                # Isolate operator error from finite FP32 solver error. The
+                # direct-distance solver comparison above remains independent.
+                operator_plan = np.exp((2/eps)*(q.astype(np.float64)@k.astype(np.float64).T)
+                                       + u.astype(np.float64)[:, None] + v.astype(np.float64)[None, :])
                 for transpose in (False, True):
                     x, y, left, right = (k, q, v, u) if transpose else (q, k, u, v)
                     values = rng.normal(size=(len(y), 35)).astype(np.float32)
@@ -89,8 +94,21 @@ def main():
                     kernels._apply_kernel[(triton.cdiv(len(x), bm), 2)](
                         *map(pointer, (x, y, left, right, values, out)), len(x), len(y), d, 35,
                         2/eps, "ieee", bm, bn, bd, 32)
-                    np.testing.assert_allclose(out, (expected.T if transpose else expected)@values,
+                    np.testing.assert_allclose(out, (operator_plan.T if transpose else operator_plan)@values,
                                                rtol=8e-4, atol=3e-6)
+                    vector = extra_rng.normal(size=len(y)).astype(np.float32)
+                    vector_out = np.empty(len(x), dtype=np.float32)
+                    kernels._apply_vector_kernel[(triton.cdiv(len(x), bm),)](
+                        *map(pointer, (x, y, left, right, vector, vector_out)),
+                        len(x), len(y), d, 2/eps, "ieee", bm, bn, bd)
+                    plan = operator_plan.T if transpose else operator_plan
+                    np.testing.assert_allclose(vector_out, plan @ vector, rtol=8e-4, atol=3e-6)
+                    gradient = np.empty_like(x)
+                    kernels._gradient_kernel[(triton.cdiv(len(x), bm),)](
+                        *map(pointer, (x, y, left, right, gradient)),
+                        len(x), len(y), d, 2/eps, 2.0, "ieee", bm, bn, bd, 32)
+                    np.testing.assert_allclose(gradient, 2*(plan.sum(1)[:, None]*x-plan@y),
+                                               rtol=1e-3, atol=5e-6)
                 left = rng.normal(size=(n, d)).astype(np.float32)
                 right = rng.normal(size=(m, d)).astype(np.float32)
                 values = rng.normal(size=(m, 35)).astype(np.float32)
@@ -100,11 +118,12 @@ def main():
                     n, m, d, d, 35, 2/eps, "ieee", bm, bn, bd,
                     kernels.feature_block(d), 32)
                 np.testing.assert_allclose(
-                    out, (expected * (left@right.T))@values,
+                    out, (operator_plan * (left.astype(np.float64)@right.astype(np.float64).T))@values,
                     rtol=1e-3, atol=5e-6,
                 )
                 count += 1
-    print(f"PASS: {count} solver, {count*2} transport/adjoint and {count} Hadamard cases; "
+    print(f"PASS: {count} solver, {count*2} matrix, {count*2} vector, "
+          f"{count*2} gradient and {count} Hadamard cases; "
           f"max plan error={max_error:.3g}")
     print(f"Triton {triton.__version__}; CPU interpreter, NOT GPU execution.")
 

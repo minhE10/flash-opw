@@ -37,7 +37,8 @@ def main():
         hadamard_configurations = {
             kernels.hadamard_launch_config(d, d, bm, bn) for bm, bn in ((16, 32), (32, 64))
         }
-        for bm, bn, stages in sorted(regular_configurations | hadamard_configurations):
+        gradient_configurations = {(16, kernels.launch_config(d, 32, 64)[1], 1)}
+        for bm, bn, stages in sorted(regular_configurations | hadamard_configurations | gradient_configurations):
             for precision in ("ieee", "tf32", "tf32x3"):
                 base = dict(N=37, M=79, D=d, SCALE=10.0, PRECISION=precision,
                             BM=bm, BN=bn, BD=kernels.feature_block(d))
@@ -50,16 +51,21 @@ def main():
                          ("Q", "K", "U", "V", "LOGA", "LOGB", "UOUT", "VOUT"), {}),
                         (kernels._apply_kernel, ("Q", "K", "U", "V", "VALUES", "OUT"),
                          dict(P=129 if d >= 64 else 35,
-                              BP=kernels.value_block(129 if d >= 64 else 35, d))),
+                              BP=kernels.value_block(129 if d >= 64 else 35, d, precision))),
+                        (kernels._apply_vector_kernel, ("Q", "K", "U", "V", "VALUES", "OUT"), {}),
                     ])
+                if (bm, bn, stages) in gradient_configurations:
+                    variants.append((kernels._gradient_kernel,
+                                     ("Q", "K", "U", "V", "OUT"),
+                                     dict(GAMMA=2.0, BG=32)))
                 if (bm, bn, stages) in hadamard_configurations:
                     variants.append((
                         kernels._hadamard_apply_kernel,
                         ("Q", "K", "U", "V", "LEFT", "RIGHT", "VALUES", "OUT"),
                         dict(R=d, P=129 if d >= 64 else 35,
                              BR=kernels.feature_block(d),
-                             BP=(min(64, kernels.value_block(129, d))
-                                 if d >= 256 else kernels.value_block(129 if d >= 64 else 35, d))),
+                             BP=(min(64, kernels.value_block(129, d, precision))
+                                 if d >= 256 else kernels.value_block(129 if d >= 64 else 35, d, precision))),
                     ))
                 for fn, pointers, extra in variants:
                     source = ASTSource(fn, signature={name: "*fp32" for name in pointers}, constexprs={**base, **extra})

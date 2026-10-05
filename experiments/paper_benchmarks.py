@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import ctypes
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from functools import partial
 import gc
@@ -24,7 +24,7 @@ import time
 
 import torch
 
-from flashopw import hessian_vector_product, sinkhorn_cost, sinkhorn_flash
+from flashopw import diagnostics, hessian_vector_product, sinkhorn_cost, sinkhorn_flash
 from .runtime import configure, metadata
 
 
@@ -125,6 +125,10 @@ def _time_jax(fn, warmups, repeats, jax):
 
 
 def _memory_torch(fn):
+    # Compile/tune before resetting the allocator peak. Autotune's buffers
+    # belong to setup, not to the operation's measured peak allocation.
+    value = fn()
+    del value
     gc.collect()
     torch.cuda.empty_cache()
     torch.cuda.synchronize()
@@ -142,6 +146,18 @@ def _sqdist(x, y):
     return x2 + y2 - 2.0 * (x @ y.transpose(-2, -1))
 
 
+def _diagnose_result(result, vector=None, args=None):
+    """Run outside timed sections; report finite-solve residuals without retuning."""
+    record = dict(coupling=diagnostics(result))
+    if vector is not None:
+        value, info = hessian_vector_product(
+            result, vector, damping=args.hvp_damping,
+            max_cg_iters=args.hvp_cg_iters, cg_rtol=0, cg_atol=0, return_info=True)
+        record.update(cg=asdict(info), hvp_finite=bool(torch.isfinite(value).all()),
+                      hvp_norm=float(value.norm()))
+    return record
+
+
 def _flash_operation(method, experiment, x, y, args):
     schedule = "symmetric" if method == "flash-sym" else "alternating"
     is_hvp = experiment.startswith("hvp")
@@ -156,6 +172,7 @@ def _flash_operation(method, experiment, x, y, args):
             result = sinkhorn_flash(x, y, **common)
             return (result.a * result.f).sum() + (result.b * result.g).sum()
 
+        forward.diagnostics = lambda: _diagnose_result(sinkhorn_flash(x, y, **common))
         return forward, "CUDA events; fixed Sinkhorn iterations + balanced dual cost"
     if experiment in ("backward_n", "backward_d", "memory_backward"):
         tracked_x = x.detach().requires_grad_(True)
@@ -164,9 +181,11 @@ def _flash_operation(method, experiment, x, y, args):
             loss = sinkhorn_cost(tracked_x, y, backend="flash", **common)
             return torch.autograd.grad(loss, tracked_x, create_graph=False)[0]
 
+        forward_backward.diagnostics = lambda: _diagnose_result(sinkhorn_flash(x, y, **common))
         return forward_backward, "CUDA events; forward + analytic source gradient"
     # Potentials are setup state, matching a Hessian-vector product from an
-    # already solved OT problem. The timed section is fixed-K Schur CG only.
+    # already solved OT problem. Timing includes the full HVP transport terms
+    # and fixed-K Schur CG, excluding the potential solve.
     result = sinkhorn_flash(x, y, **common)
     generator = torch.Generator(device=x.device).manual_seed(args.seed + 991)
     vector = torch.randn(x.shape, dtype=x.dtype, device=x.device, generator=generator)
@@ -178,6 +197,7 @@ def _flash_operation(method, experiment, x, y, args):
             max_cg_iters=args.hvp_cg_iters, cg_rtol=0.0, cg_atol=0.0,
         )
 
+    hvp.diagnostics = lambda: _diagnose_result(result, vector, args)
     return hvp, f"CUDA events; cached potentials; fixed {args.hvp_cg_iters}-step CG"
 
 
@@ -222,6 +242,7 @@ def _geomloss_operation(method, experiment, x, y, args):
                 max_cg_iters=args.hvp_cg_iters, cg_rtol=0.0, cg_atol=0.0,
             )
 
+        hvp.diagnostics = lambda: _diagnose_result(result, vector, args)
         return hvp, f"CUDA events; PyKeOps transport; fixed {args.hvp_cg_iters}-step Schur CG"
     backward = experiment in ("backward_n", "backward_d", "memory_backward")
     log_weights, geomloss_cost, sinkhorn_loop, lse_genred, softmin_online, softmin_tensorized = \
@@ -308,12 +329,9 @@ def _jax_operation(experiment, x, y, args):
     iterations = args.hvp_sinkhorn_iters if is_hvp else args.iters
     jax_config.update("jax_default_matmul_precision", "highest" if is_hvp or args.precision == "ieee" else "default")
     if is_hvp:
-        from .jax_hvp import hvp_from_shifted_potentials
-
         # Use the same converged coupling as the Torch and KeOps HVP paths.
-        # JAX's linearize(grad(OTT loss)) builds a huge differentiation graph
-        # and OOMs even at 5k points on a 16 GB card. All JAX arrays are
-        # dynamic JIT inputs; the timed section is the fixed-step Schur solve.
+        # All arrays/potentials are dynamic JIT inputs. Solve and conversion
+        # are setup; timing includes the full HVP, including Schur-CG.
         base = sinkhorn_flash(
             x, y, epsilon=args.epsilon, n_iters=iterations,
             schedule="symmetric", precision="ieee",
@@ -328,6 +346,38 @@ def _jax_operation(experiment, x, y, args):
 
         operands = tuple(to_jax(tensor) for tensor in
                          (x, y, base.u, base.v, direction))
+        if args.jax_hvp_backend == "ott-hessian":
+            from .ott_hessian import load_hessian, state_from_shifted
+            hessian, provenance = load_hessian(args.ott_hessian_path, cg_rtol=0, cg_atol=0)
+            state = state_from_shifted(*operands[:4], epsilon=args.epsilon,
+                                       batch_size=args.jax_batch_size)
+            operation = jax.jit(hessian, static_argnames=("tau2", "iter"))
+
+            def run_ott_hvp():
+                # Upstream adds epsilon*tau2 to the Schur diagonal. Preserve
+                # the existing benchmark's absolute Schur damping exactly.
+                return operation(operands[4], state,
+                                 tau2=args.hvp_damping / args.epsilon,
+                                 iter=args.hvp_cg_iters)
+
+            detail = (f"JAX OTT-Hessian {provenance['function']}; "
+                      f"source_sha256={provenance['sha256']}; shared potentials; "
+                      f"guarded fixed-CG adapter, steps={args.hvp_cg_iters}; "
+                      f"tau2={args.hvp_damping / args.epsilon:g}, "
+                      f"Schur damping={args.hvp_damping:g}")
+            def diagnose_ott():
+                actual = torch.as_tensor(jax.device_get(run_ott_hvp()).copy(), device=x.device)
+                expected = hessian_vector_product(base, direction, damping=args.hvp_damping,
+                                                  max_cg_iters=args.hvp_cg_iters, cg_rtol=0, cg_atol=0)
+                error = float((actual-expected).double().norm() / expected.double().norm().clamp_min(1e-30))
+                record = _diagnose_result(base, direction, args)
+                record.update(source=provenance, relative_l2_vs_flash=error,
+                              baseline_finite=bool(torch.isfinite(actual).all()))
+                return record
+            run_ott_hvp.diagnostics = diagnose_ott
+            return run_ott_hvp, jax, detail
+
+        from .jax_hvp import hvp_from_shifted_potentials
         operation = jax.jit(
             hvp_from_shifted_potentials,
             static_argnames=("epsilon", "damping", "cg_iters", "block_rows", "block_keys"),
@@ -400,7 +450,8 @@ def _draw_panel(axis, experiment, rows, show_title=True):
             continue
         label, color, marker = STYLE[method]
         if experiment.startswith("hvp") and method == "jax":
-            label = "JAX (matrix-free)"
+            label = ("JAX (OTT-Hessian, fixed CG)" if "OTT-Hessian" in points[0]["detail"]
+                     else "JAX (matrix-free)")
         if experiment.startswith("memory") and len(points) >= 2:
             log_x = [math.log(row["axis_value"]) for row in points]
             log_y = [math.log(row["mean"]) for row in points if row["mean"] > 0]
@@ -507,6 +558,14 @@ def _parse_args():
     parser.add_argument("--memory-fraction", type=float, default=0.80)
     parser.add_argument("--max-tensorized-mib", type=float, default=12000)
     parser.add_argument("--jax-batch-size", type=int, default=256)
+    parser.add_argument("--jax-hvp-backend", choices=("ott-hessian", "matrix-free"),
+                        default="ott-hessian")
+    parser.add_argument("--ott-hessian-path", type=Path,
+                        default=Path("outputs/third_party/OTT-Hessian"))
+    parser.add_argument("--autotune", action="store_true",
+                        help="tune bounded tile/stage candidates during warmup on the allocated GPU")
+    parser.add_argument("--diagnostics", action="store_true",
+                        help="write coupling residuals and HVP CG/parity diagnostics outside timing")
     parser.add_argument("--block-m", type=int, default=32)
     parser.add_argument("--block-n", type=int, default=64)
     parser.add_argument("--seed", type=int, default=0)
@@ -526,6 +585,7 @@ def _parse_args():
 
 def main():
     args = _parse_args()
+    os.environ["FLASHOPW_AUTOTUNE"] = "1" if args.autotune else "0"
     os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
     os.environ.setdefault("XLA_PYTHON_CLIENT_ALLOCATOR", "platform")
     _preload_cuda_libraries()
@@ -549,12 +609,15 @@ def main():
             "keops_max_n": args.hvp_keops_max_n,
             "max_d": args.hvp_baseline_max_d,
         },
-        "jax_hvp": "custom matrix-free JAX Schur-CG with shared Flash potentials; not OTT-Hessian",
+        "jax_hvp": args.jax_hvp_backend,
+        "jax_hvp_controls": ("upstream HessianA/OTT geometry; shared coupling; guarded fixed-step CG adapter; tau2=Schur damping/epsilon"
+                             if args.jax_hvp_backend == "ott-hessian" else "custom fixed-step Schur-CG"),
         "tensorized_forward": "dense squared-distance matrix precomputed and cached outside timing, matching the official benchmark",
-        "tiles": "fixed RTX-safe upper bounds; no A100 autotuning",
+        "tiles": "bounded GPU autotuning in warmup" if args.autotune else "fixed RTX-safe upper bounds",
     }
     (output / "environment.json").write_text(json.dumps(environment, indent=2), encoding="utf-8")
     rows = []
+    validation = []
 
     for experiment in args.experiments:
         print(f"\n=== {PANELS[experiment][0]} ===", flush=True)
@@ -621,11 +684,29 @@ def main():
                         samples = (_time_torch(operation, args.warmups, repeats) if timing_kind == "torch"
                                    else _time_jax(operation, args.warmups, repeats, jax))
                         unit = "ms"
+                    # A runtime is not a valid curve point if its output is
+                    # nonfinite. Probe outside timing without changing counts.
+                    probe = operation()
+                    if timing_kind == "torch":
+                        finite = bool(torch.isfinite(probe).all())
+                    else:
+                        import jax.numpy as jnp
+                        finite = bool(jax.device_get(jnp.isfinite(probe).all()))
+                    del probe
                     row = dict(experiment=experiment, axis_value=axis_value, n=n, m=m, d=d,
-                               method=method, status="ok", unit=unit, detail=detail,
+                               method=method, status="ok" if finite else "nonfinite_output", unit=unit, detail=detail,
                                samples=samples, **_stats(samples))
                     rows.append(row)
                     print(f"{axis_value:6d} {method:12s} {row['mean']:10.3f} {unit}", flush=True)
+                    if not finite:
+                        print(f"{axis_value:6d} {method:12s} NONFINITE output; excluded from plots", flush=True)
+                    if args.diagnostics and hasattr(operation, "diagnostics"):
+                        try:
+                            diagnostic = operation.diagnostics()
+                        except Exception as exc:
+                            diagnostic = dict(error=f"{type(exc).__name__}: {exc}")
+                        validation.append(dict(experiment=experiment, n=n, m=m, d=d,
+                                               method=method, **diagnostic))
                 except torch.cuda.OutOfMemoryError as exc:
                     _record_failure(rows, experiment, axis_value, n, m, d, method, "oom", str(exc))
                     print(f"{axis_value:6d} {method:12s} OOM", flush=True)
@@ -635,6 +716,11 @@ def main():
                     print(f"{axis_value:6d} {method:12s} FAILED: {type(exc).__name__}: {exc}", flush=True)
                 finally:
                     _write_results(output, rows)
+                    from flashopw.kernel_tuning import tuning_records
+                    (output / "autotuning.json").write_text(
+                        json.dumps(tuning_records(), indent=2), encoding="utf-8")
+                    (output / "diagnostics.json").write_text(
+                        json.dumps(validation, indent=2), encoding="utf-8")
                     operation = None
                     if method == "jax":
                         try:

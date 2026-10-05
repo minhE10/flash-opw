@@ -149,10 +149,9 @@ def _sinkhorn_streaming(x, y, *, a, b, epsilon, cost_scale, n_iters, schedule,
         if precision not in ("ieee", "tf32x3", "tf32"):
             raise ValueError("precision must be ieee, tf32x3 or tf32")
         try:
-            from .triton_kernels import launch_config, symmetric_update, update
+            from .triton_kernels import symmetric_update, update
         except ImportError as exc:
             raise RuntimeError("Triton is required: run in the server's Linux PyTorch CUDA environment") from exc
-        block_m, block_n, _ = launch_config(x.shape[1], block_m, block_n)
     loga, logb = a.log(), b.log()
     u = loga - (cost_scale / epsilon) * x.square().sum(1)
     v = logb - (cost_scale / epsilon) * y.square().sum(1)
@@ -193,7 +192,8 @@ def sinkhorn_flash(x, y, *, a=None, b=None, epsilon=0.2, cost_scale=1.0,
     Defaults use FP32 storage/accumulation and TF32 dot products, matching the
     paper's forward/backward protocol. ``tf32x3`` is the higher-accuracy option
     and ``ieee`` is strict FP32. Tiles are upper bounds and are reduced for
-    large feature dimensions. No autotuning or multi-GPU work is launched.
+    large feature dimensions. Set FLASHOPW_AUTOTUNE=1 for bounded tuning on
+    the selected GPU during the first call for each kernel/shape/precision.
     """
     return _sinkhorn_streaming(x, y, a=a, b=b, epsilon=epsilon, cost_scale=cost_scale,
         n_iters=n_iters, schedule=schedule, tol=tol, check_every=check_every,

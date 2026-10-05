@@ -38,7 +38,7 @@ def regularized_ot_cost(result: SinkhornResult):
     return (result.a * result.f).sum() + (result.b * result.g).sum() + result.epsilon * (1 - mass)
 
 
-def _conjugate_gradient(matvec, rhs, *, damping, max_iters, rtol, atol):
+def _conjugate_gradient(matvec, rhs, *, damping, max_iters, rtol, atol, collect_info=True):
     solution = torch.zeros_like(rhs)
     residual = rhs.clone()
     # With zero damping the Schur complement has null vector 1. The exact RHS
@@ -75,6 +75,8 @@ def _conjugate_gradient(matvec, rhs, *, damping, max_iters, rtol, atol):
             residual, residual_sq = next_residual, next_sq
             breakdown = breakdown | (active & ~valid)
             active = valid & torch.isfinite(next_sq) & (next_sq > 0)
+        if not collect_info:
+            return solution, None
         initial = float(torch.sqrt(initial_sq))
         final = float(torch.sqrt(residual_sq))
         return solution, HVPInfo(False, max_iters, final, initial, damping,
@@ -171,6 +173,7 @@ def hessian_vector_product(result: SinkhornResult, vector, *, damping=1e-5,
     w2, info = _conjugate_gradient(
         schur, rhs, damping=damping, max_iters=max_cg_iters,
         rtol=cg_rtol, atol=cg_atol,
+        collect_info=return_info,
     )
     pw2 = p(w2)
     w1 = (r1 - pw2) / diag_x

@@ -24,7 +24,7 @@ def feature_block(d):
     return min(128, max(32, triton.next_power_of_2(d)))
 
 
-def value_block(columns, d):
+def value_block(columns, d, precision=None):
     """Amortize the score/LSE pass over more output channels when possible.
 
     A separate program recomputes every score tile for each output block.
@@ -32,7 +32,7 @@ def value_block(columns, d):
     128 channels needs only eight passes while fitting RTX shared memory with
     the conservative 16x32 query/key tiles used for large dimensions.
     """
-    if columns < 64:
+    if columns < 64 or (precision == "tf32x3" and d <= 64):
         return 32
     # The d<=64 launch uses 32x64 tiles, twice the score area of the wide-d
     # 16x32 launch. Keep its output tile smaller to avoid excessive residency.
@@ -182,6 +182,89 @@ def _apply_kernel(Q, K, U, V, VALUES, OUT,
 
 
 @triton.jit
+def _apply_vector_kernel(Q, K, U, V, VALUES, OUT,
+                         N: tl.constexpr, M: tl.constexpr, D: tl.constexpr,
+                         SCALE: tl.constexpr, PRECISION: tl.constexpr,
+                         BM: tl.constexpr, BN: tl.constexpr, BD: tl.constexpr):
+    """Signed P @ vector with online rescaling and a direct row reduction."""
+    rows = tl.program_id(0) * BM + tl.arange(0, BM)
+    running = tl.full((BM,), -float("inf"), tl.float32)
+    acc = tl.zeros((BM,), tl.float32)
+    for start in range(tl.cdiv(M, BN)):
+        cols = start * BN + tl.arange(0, BN)
+        scores = tl.zeros((BM, BN), tl.float32)
+        for dim_start in range(0, D, BD):
+            dims = dim_start + tl.arange(0, BD)
+            q = tl.load(Q + rows[:, None] * D + dims[None, :],
+                        (rows[:, None] < N) & (dims[None, :] < D), other=0)
+            k = tl.load(K + cols[None, :] * D + dims[:, None],
+                        (cols[None, :] < M) & (dims[:, None] < D), other=0)
+            scores += tl.dot(q, k, input_precision=PRECISION)
+        bias = tl.load(V + cols, cols < M, other=0)
+        scores = tl.where(cols[None, :] < M,
+                          scores * SCALE + bias[None, :], -float("inf"))
+        new_max = tl.maximum(running, tl.max(scores, 1))
+        weights = tl.exp(scores - new_max[:, None])
+        values = tl.load(VALUES + cols, cols < M, other=0)
+        acc = acc * tl.exp(running - new_max) + tl.sum(weights * values[None, :], 1)
+        running = new_max
+    logscale = tl.load(U + rows, rows < N, other=0) + running
+    tl.store(OUT + rows, acc * tl.exp(logscale), rows < N)
+
+
+@triton.jit
+def _gradient_kernel(Q, K, U, V, OUT,
+                     N: tl.constexpr, M: tl.constexpr, D: tl.constexpr,
+                     SCALE: tl.constexpr, GAMMA: tl.constexpr, PRECISION: tl.constexpr,
+                     BM: tl.constexpr, BN: tl.constexpr, BD: tl.constexpr, BG: tl.constexpr):
+    """Reuse each score tile across all feature blocks; retain actual masses.
+
+    A tuple of feature accumulators stays live across the key loop. No global
+    scratch or atomic writes, and no repeated score pass per output block.
+    """
+    rows = tl.program_id(0) * BM + tl.arange(0, BM)
+    running = tl.full((BM,), -float("inf"), tl.float32)
+    mass = tl.zeros((BM,), tl.float32)
+    feature_blocks: tl.constexpr = (D + BG - 1) // BG
+    accumulators = ()
+    for feature in tl.static_range(feature_blocks):
+        accumulators += (tl.zeros((BM, BG), tl.float32),)
+    for start in range(tl.cdiv(M, BN)):
+        cols = start * BN + tl.arange(0, BN)
+        scores = tl.zeros((BM, BN), tl.float32)
+        for dim_start in range(0, D, BD):
+            dims = dim_start + tl.arange(0, BD)
+            q = tl.load(Q + rows[:, None] * D + dims[None, :],
+                        (rows[:, None] < N) & (dims[None, :] < D), other=0)
+            k = tl.load(K + cols[None, :] * D + dims[:, None],
+                        (cols[None, :] < M) & (dims[:, None] < D), other=0)
+            scores += tl.dot(q, k, input_precision=PRECISION)
+        bias = tl.load(V + cols, cols < M, other=0)
+        scores = tl.where(cols[None, :] < M,
+                          scores * SCALE + bias[None, :], -float("inf"))
+        new_max = tl.maximum(running, tl.max(scores, 1))
+        rescale = tl.exp(running - new_max)
+        weights = tl.exp(scores - new_max[:, None])
+        mass = mass * rescale + tl.sum(weights, 1)
+        next_accumulators = ()
+        for feature in tl.static_range(feature_blocks):
+            dims = feature * BG + tl.arange(0, BG)
+            values = tl.load(K + cols[:, None] * D + dims[None, :],
+                             (cols[:, None] < M) & (dims[None, :] < D), other=0)
+            next_accumulators += (accumulators[feature] * rescale[:, None]
+                                  + tl.dot(weights, values, input_precision=PRECISION),)
+        accumulators = next_accumulators
+        running = new_max
+    factor = GAMMA * tl.exp(tl.load(U + rows, rows < N, other=0) + running)
+    for feature in tl.static_range(feature_blocks):
+        dims = feature * BG + tl.arange(0, BG)
+        mask = (rows[:, None] < N) & (dims[None, :] < D)
+        points = tl.load(Q + rows[:, None] * D + dims[None, :], mask, other=0)
+        gradient = factor[:, None] * (mass[:, None] * points - accumulators[feature])
+        tl.store(OUT + rows[:, None] * D + dims[None, :], gradient, mask)
+
+
+@triton.jit
 def _hadamard_apply_kernel(Q, K, U, V, LEFT, RIGHT, VALUES, OUT,
                            N: tl.constexpr, M: tl.constexpr, D: tl.constexpr,
                            R: tl.constexpr, P: tl.constexpr,
@@ -233,65 +316,91 @@ def _hadamard_apply_kernel(Q, K, U, V, LEFT, RIGHT, VALUES, OUT,
 
 def update(q, k, old, bias, logw, out, scale, symmetric, precision, block_m, block_n):
     import torch
+    from .kernel_tuning import launch
 
-    block_m, block_n, stages = launch_config(q.shape[1], block_m, block_n)
+    bm, bn, stages = launch_config(q.shape[1], block_m, block_n)
     with torch.cuda.device(q.device):
-        _update_kernel[(triton.cdiv(len(q), block_m),)](
-            q, k, old, bias, logw, out, len(q), len(k), q.shape[1], scale,
-            symmetric, precision, block_m, block_n, feature_block(q.shape[1]),
-            num_warps=4, num_stages=stages, enable_fp_fusion=False)
+        launch(_update_kernel, (q, k, old, bias, logw, out),
+               dict(N=len(q), M=len(k), D=q.shape[1], SCALE=scale,
+                    SYMMETRIC=symmetric, PRECISION=precision, BD=feature_block(q.shape[1])),
+               lambda c: (triton.cdiv(len(q), c[0]),),
+               (bm, bn, stages, 4), block_m, block_n)
 
 
 def symmetric_update(q, k, u, v, loga, logb, uout, vout,
                      scale, precision, block_m, block_n):
     """Launch one fused symmetric step for both shifted potentials."""
     import torch
+    from .kernel_tuning import launch
 
-    block_m, block_n, stages = launch_config(q.shape[1], block_m, block_n)
-    grid = (triton.cdiv(len(q), block_m) + triton.cdiv(len(k), block_n),)
+    bm, bn, stages = launch_config(q.shape[1], block_m, block_n)
     with torch.cuda.device(q.device):
-        _symmetric_update_kernel[grid](
-            q, k, u, v, loga, logb, uout, vout,
-            len(q), len(k), q.shape[1], scale, precision,
-            block_m, block_n, feature_block(q.shape[1]),
-            num_warps=4, num_stages=stages, enable_fp_fusion=False,
-        )
+        launch(_symmetric_update_kernel, (q, k, u, v, loga, logb, uout, vout),
+               dict(N=len(q), M=len(k), D=q.shape[1], SCALE=scale,
+                    PRECISION=precision, BD=feature_block(q.shape[1])),
+               lambda c: (triton.cdiv(len(q), c[0]) + triton.cdiv(len(k), c[1]),),
+               (bm, bn, stages, 4), block_m, block_n)
 
 
 def apply(q, k, u, v, values, scale, precision, block_m, block_n):
     import torch
+    import os
+    from .kernel_tuning import launch
 
-    block_m, block_n, stages = launch_config(q.shape[1], block_m, block_n)
-    block_p = value_block(values.shape[1], q.shape[1])
+    bm, bn, stages = launch_config(q.shape[1], block_m, block_n)
+    block_p = value_block(values.shape[1], q.shape[1], precision)
     out = torch.empty((len(q), values.shape[1]), device=q.device, dtype=q.dtype)
+    constants = dict(N=len(q), M=len(k), D=q.shape[1], SCALE=scale,
+                     PRECISION=precision, BD=feature_block(q.shape[1]))
     with torch.cuda.device(q.device):
-        _apply_kernel[(triton.cdiv(len(q), block_m), triton.cdiv(values.shape[1], block_p))](
-            q, k, u, v, values, out, len(q), len(k), q.shape[1], values.shape[1],
-            scale, precision, block_m, block_n, feature_block(q.shape[1]), block_p,
-            num_warps=4, num_stages=stages, enable_fp_fusion=False)
+        if values.shape[1] == 1 and os.environ.get("FLASHOPW_VECTOR_KERNEL", "1") == "1":
+            launch(_apply_vector_kernel, (q, k, u, v, values, out), constants,
+                   lambda c: (triton.cdiv(len(q), c[0]),),
+                   (bm, bn, stages, 4), block_m, block_n)
+            return out
+        launch(_apply_kernel, (q, k, u, v, values, out),
+               dict(constants, P=values.shape[1], BP=block_p),
+               lambda c: (triton.cdiv(len(q), c[0]), triton.cdiv(values.shape[1], block_p)),
+               (bm, bn, stages, 4), block_m, block_n)
+    return out
+
+
+def gradient(q, k, u, v, scale, gamma, precision, block_m, block_n):
+    import torch
+    from .kernel_tuning import launch
+
+    bm, bn, stages = launch_config(q.shape[1], block_m, block_n)
+    # Keeping all output features live can be register-heavy. Start with the
+    # smallest row tile; tuning may select a larger one after compilation.
+    bm = min(bm, 16)
+    out = torch.empty_like(q)
+    with torch.cuda.device(q.device):
+        launch(_gradient_kernel, (q, k, u, v, out),
+               dict(N=len(q), M=len(k), D=q.shape[1], SCALE=scale, GAMMA=gamma,
+                    PRECISION=precision, BD=feature_block(q.shape[1]), BG=32),
+               lambda c: (triton.cdiv(len(q), c[0]),),
+               (bm, bn, 1, 4), block_m, block_n, gradient=True)
     return out
 
 
 def hadamard_apply(q, k, u, v, left, right, values, scale, precision, block_m, block_n):
     import torch
+    from .kernel_tuning import launch
 
-    block_m, block_n, stages = hadamard_launch_config(
+    bm, bn, stages = hadamard_launch_config(
         q.shape[1], left.shape[1], block_m, block_n,
     )
     # This kernel also keeps a second feature dot product live. Cap its value
     # tile at 64 for wide inputs to preserve the 64 KiB shared-memory budget.
-    block_p = (min(64, value_block(values.shape[1], q.shape[1]))
+    block_p = (min(64, value_block(values.shape[1], q.shape[1], precision))
                if max(q.shape[1], left.shape[1]) >= 256 else
-               value_block(values.shape[1], q.shape[1]))
+               value_block(values.shape[1], q.shape[1], precision))
     out = torch.empty((len(q), values.shape[1]), device=q.device, dtype=q.dtype)
     with torch.cuda.device(q.device):
-        _hadamard_apply_kernel[
-            (triton.cdiv(len(q), block_m), triton.cdiv(values.shape[1], block_p))
-        ](
-            q, k, u, v, left, right, values, out,
-            len(q), len(k), q.shape[1], left.shape[1], values.shape[1],
-            scale, precision, block_m, block_n, feature_block(q.shape[1]),
-            feature_block(left.shape[1]), block_p,
-            num_warps=4, num_stages=stages, enable_fp_fusion=False,
-        )
+        launch(_hadamard_apply_kernel, (q, k, u, v, left, right, values, out),
+               dict(N=len(q), M=len(k), D=q.shape[1], R=left.shape[1], P=values.shape[1],
+                    SCALE=scale, PRECISION=precision, BD=feature_block(q.shape[1]),
+                    BR=feature_block(left.shape[1]), BP=block_p),
+               lambda c: (triton.cdiv(len(q), c[0]), triton.cdiv(values.shape[1], block_p)),
+               (bm, bn, stages, 4), block_m, block_n, hadamard=True)
     return out

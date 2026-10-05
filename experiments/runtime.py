@@ -1,10 +1,12 @@
 """Process-local resource limits and explicit single-GPU selection."""
 
 import importlib.metadata
+import hashlib
 import os
 import platform
 import subprocess
 import sys
+from pathlib import Path
 
 import torch
 
@@ -36,6 +38,11 @@ def metadata(device):
             "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
             "threads": torch.get_num_threads()}
     info["packages"] = {}
+    info["kernel_controls"] = {
+        "autotune": os.environ.get("FLASHOPW_AUTOTUNE", "0"),
+        "vector_kernel": os.environ.get("FLASHOPW_VECTOR_KERNEL", "1"),
+        "gradient_kernel": os.environ.get("FLASHOPW_GRADIENT_KERNEL", "1"),
+    }
     for package in ("triton", "geomloss", "pykeops", "ott-jax", "jax", "jaxlib"):
         try:
             info["packages"][package] = importlib.metadata.version(package)
@@ -49,9 +56,25 @@ def metadata(device):
     except (OSError, subprocess.CalledProcessError):
         info["git_commit"] = None
     info["triton"] = info["packages"]["triton"]
+    root = Path(__file__).resolve().parents[1]
+    info["source_sha256"] = {}
+    for relative in ("flashopw/triton_kernels.py", "flashopw/kernel_tuning.py",
+                     "flashopw/transport.py", "flashopw/differentiation.py",
+                     "experiments/paper_benchmarks.py", "experiments/ott_hessian.py"):
+        path = root / relative
+        if path.is_file():
+            content = path.read_bytes().replace(b"\r\n", b"\n")
+            info["source_sha256"][relative] = hashlib.sha256(content).hexdigest()
     if device.type == "cuda":
         props = torch.cuda.get_device_properties(device)
         free, total = torch.cuda.mem_get_info(device)
         info.update(gpu=props.name, capability=list(torch.cuda.get_device_capability(device)),
                     gpu_total_bytes=total, gpu_free_bytes_at_start=free)
+        try:
+            info["nvidia_smi_at_start"] = subprocess.check_output(
+                ["nvidia-smi", "-i", os.environ["CUDA_VISIBLE_DEVICES"],
+                 "--query-gpu=index,uuid,name,driver_version,temperature.gpu,clocks.sm,clocks.mem,power.draw,memory.total,memory.used",
+                 "--format=csv"], text=True, stderr=subprocess.DEVNULL, timeout=5).strip()
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            info["nvidia_smi_at_start"] = None
     return info

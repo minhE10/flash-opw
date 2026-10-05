@@ -101,3 +101,88 @@ bash scripts/run_server.sh 1 --sizes 128 256 512 --weighted --target-ratio 1.3
 Do not infer a speedup from the paper or the offline/CPU checks. The command
 performs GPU smoke/parity tests before benchmarking and writes the actual
 environment, timings, allocated memory and validation status into `outputs/`.
+
+## Optimization checks, 2026-10-05
+
+These changes extend commit `fec70ce`; the original comparison
+report and original benchmark log were not replaced or reinterpreted as new
+measurements. No server GPU has been accessed during these checks.
+
+Windows: Python 3.14.3, PyTorch 2.11.0+cpu. An isolated `.venv-baselines`
+with JAX 0.8.2, OTT-JAX 0.5.1, Lineax 0.0.8 and Optax 0.2.6 reuses the
+existing CPU PyTorch installation. With the external pinned OTT-Hessian source:
+
+```text
+FLASHOPW_OTT_HESSIAN_PATH=outputs/ott-hessian-reference
+.venv-baselines/Scripts/python -m pytest -q
+48 passed, 118 skipped, 1 warning
+```
+
+All 118 skips are GPU tests. The warning is an upstream OTT use of deprecated
+JAX batching API. The nine JAX tests run on CPU: three custom matrix-free HVP
+cases, plus six external OTT-Hessian adapter cases with epsilon 0.1/0.7,
+nonuniform rectangular Gaussian inputs and uniform 37x79 inputs at d=65,
+using both 12 and 50 CG steps. Paper HVP direction normalization is used in
+the external tests. The external cases retain elementwise rtol=3e-3,
+atol=3e-5 and also require global relative L2 error below 3e-3.
+They check OTT potential conversion and absolute damping conversion.
+A separate CPU test verifies that the autotuner never launches candidates
+above the shared-memory budget and reuses its cached selection.
+
+The external checkout is
+`yexf308/OTT-Hessian@7eb189fe39982f587da935044480655b65939637`.
+The normalized `SinkhornHessian.py` checksum is
+`7cd3c27a14563e949bf2f35d5719173308df38f498975a6b950488e5cb1c5158`.
+The file stays unmodified. A fixed-step adapter replaces the Lineax CG call,
+while retaining upstream HessianA formulas and OTT transport geometry.
+Initial testing of zero-tolerance upstream Lineax at 50 steps produced NaN
+for the uniform d=65 case. The guarded fixed-step CG adapter passes that case
+without reducing precision, damping, iteration budget or error thresholds.
+This is not a claim about the performance of raw upstream Lineax CG.
+
+Existing WSL environment: Python 3.14.4, Triton 3.8.0, NumPy 2.5.3.
+The updated kernel interpreter ran:
+
+```text
+PASS: 32 solver, 64 matrix, 64 vector, 64 gradient and 32 Hadamard cases;
+max plan error=3.77e-06
+```
+
+Cases extend to d=1024 and exercise both transport directions. Primitive
+applications are compared against an independent float64 dense plan formed
+from stored potentials, separating operator roundoff from finite FP32 solver
+roundoff. The solver comparison still uses the independent float64
+direct-distance recurrence. Warnings arise on masked padded rows, which are
+never written into real outputs; all real outputs meet existing tolerances.
+
+Offline compilation for RTX 5080 (`sm_120`) with Triton 3.8.0 passed:
+
+```text
+compile_kernels.py --arch 120 --dims 2 64 129 1024
+PASS: compiled 99 variants for sm_120
+compile_tuning.py --arch 120 --dims 64 1024
+PASS: 134/174 candidates fit 64 KiB; others will not launch
+```
+
+The 99 default variants cover all six kernel types and IEEE/TF32/TF32x3.
+The 174 tuning candidates cover all six kernels at d=64/1024 in IEEE/TF32;
+40 exceed the shared-memory limit and are recorded as rejected before launch.
+The maximum accepted shared-memory requirement is exactly 65,536 bytes.
+This is resource/compiler evidence, not GPU correctness or speedup evidence.
+Large gradient variants generate sizeable binaries and may have register
+pressure or spills; the actual CUDA tuner/profile is needed to assess them.
+
+An additional isolated `.venv-linux36` uses **Triton 3.6.0**, the server's
+reported version, with Python 3.14.4 and NumPy 2.5.3. Both the final interpreter
+suite and the 99 default `sm_120` compilation variants above pass with 3.6.0.
+The same maximum interpreter plan error is 3.77e-06; all compiler shared-memory
+requirements stay within 64 KiB. This caught and fixed a compiler compatibility
+issue: the gradient's static feature-loop count needs an explicit `tl.constexpr`
+instead of relying on `tl.cdiv` constant folding available in Triton 3.8.0.
+Autotune's 174-candidate resource table was collected with 3.8.0; the runtime
+autotuner checks metadata again with the server's installed compiler.
+
+The new server scripts pass `bash -n`; Python compilation and `git diff --check`
+pass. The transfer patch is checked and applied to an extracted pristine
+`fec70ce` tree, and all changed files are compared with the local working tree.
+See [server commands and interpretation](paper_reproduction.md).

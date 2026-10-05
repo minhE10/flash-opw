@@ -171,6 +171,7 @@ Install all benchmark and plotting dependencies in the isolated environment:
 
 ```bash
 python -m pip install -e '.[dev,plots,baselines]'
+bash scripts/setup_ott_hessian.sh
 python -c "import torch, pykeops, jax; print(torch.__version__); print(pykeops.__version__); print(jax.devices())"
 ```
 
@@ -210,21 +211,27 @@ each method/size. KeOps and JAX use streaming online backends; Tensorized is
 omitted from HVP as in the paper, and KeOps/JAX are omitted from PyTorch peak
 memory plots because their external allocators would make those values invalid.
 Absolute runtimes will not match the paper's A100-80GB; compare curve shape,
-OOM boundary, and speedup ratios instead. This implementation deliberately uses
-fixed RTX-safe tile upper bounds instead of the paper's A100 autotuning search;
-this hardware-specific difference is recorded in `environment.json` and can
-change absolute timings.
+OOM boundary, and speedup ratios instead. Bounded GPU autotuning is available
+with `--autotune --block-m 64 --block-n 128`. Candidates exceeding the smaller
+of the device's shared-memory limit and 64 KiB are rejected before launch.
+Compilation and tuning run in warmup; `autotuning.json` records every candidate
+and the selected configuration. The default retains fixed RTX-safe tiles.
 
 The HVP defaults extend FlashSinkhorn and KeOps to `n=50,000`, while JAX
 stops at `n=10,000`; all three use at most `d=128` except FlashSinkhorn,
-which extends to `d=512`. The JAX HVP is a custom blockwise, matrix-free
-Schur-CG implementation using the same cached FlashSinkhorn potentials as
-the other two methods; it is not the paper's OTT-Hessian package. It replaces
-the previous `jax.linearize(grad(loss))` benchmark, which constructed an
-unbounded differentiation graph and OOMed at every plotted size on 16 GB.
-The streaming transport kernels now aggregate up to 128 output channels per
-score pass for wide dimensions (64 for wide Hadamard HVPs) to reduce repeated
-score computation. The Tensorized cost matrix is deliberately precomputed
+which extends to `d=512`. JAX HVP now calls the author's external OTT-Hessian
+HessianA/OTT geometry implementation from a pinned checkout. A guarded fixed-step
+CG adapter matches Flash/KeOps; `tau2=damping/epsilon` preserves the same
+absolute Schur damping as Flash and KeOps. Potentials are shared dynamic JIT
+inputs, and solve/setup stays outside HVP timing. The source hash and numerical
+controls are recorded. This is an equivalent baseline with a configured CG solve,
+not proof that this upstream revision generated the paper tables.
+The earlier custom implementation remains available with
+`--jax-hvp-backend matrix-free` and is labelled separately. Missing upstream
+source is reported as a failed baseline, never silently replaced.
+Vectors now use a dedicated transport reduction. Source/target gradients
+reuse a score tile across all feature blocks and retain actual marginal masses
+even for unconverged solves. The Tensorized cost matrix is deliberately precomputed
 outside forward timing, as in the official benchmark. Consequently, a
 Tensorized win at `d=1024` is expected rather than a correctness failure;
 Appendix H, Tables 10--11 report the same crossover on A100.
@@ -232,6 +239,20 @@ Actual CUDA compile success and speedups must be checked on the server after
 pulling this change.
 Memory panels contain only alternating FlashSinkhorn and Tensorized, and HVP
 panels contain symmetric FlashSinkhorn, KeOps and JAX.
+
+Before a full run, validate and compare the retained generic kernels with the
+specialized and tuned implementations on exactly the same tensors:
+
+```bash
+bash scripts/validate_paper_optimizations.sh 1 --cases 10000:64 20000:1024 --profile
+bash scripts/run_paper_benchmarks.sh 1 --autotune --block-m 64 --block-n 128 --diagnostics
+```
+
+The first command requires real GPU tests to pass, writes complete HVP and
+forward+backward samples, numerical comparisons, residual/CG diagnostics and
+separate profiler traces. The second writes all eight panels with diagnostics
+outside timing. See [reproduction checks](docs/paper_reproduction.md) for setup,
+protocol differences and how to transfer unpushed changes to the server.
 
 ## Kết quả và cách so sánh
 

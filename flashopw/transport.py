@@ -1,5 +1,6 @@
 """Transport applications and diagnostics, with no dense plan by default."""
 
+import os
 import torch
 
 
@@ -149,6 +150,12 @@ def diagnostics(result):
 @torch.no_grad()
 def source_gradient(result):
     """Envelope gradient with respect to the source points only."""
+    if result.backend == "triton" and os.environ.get("FLASHOPW_GRADIENT_KERNEL", "1") == "1":
+        from .triton_kernels import gradient
+        return gradient(result.x, result.y, result.u, result.v,
+                        2 * result.cost_scale / result.epsilon,
+                        2 * result.cost_scale, result.precision,
+                        result.block_m, result.block_n)
     row_py = apply_plan(result, torch.cat((torch.ones_like(result.b[:, None]), result.y), 1))
     return 2 * result.cost_scale * (row_py[:, :1] * result.x - row_py[:, 1:])
 
@@ -156,6 +163,12 @@ def source_gradient(result):
 @torch.no_grad()
 def target_gradient(result):
     """Envelope gradient with respect to the target points only."""
+    if result.backend == "triton" and os.environ.get("FLASHOPW_GRADIENT_KERNEL", "1") == "1":
+        from .triton_kernels import gradient
+        return gradient(result.y, result.x, result.v, result.u,
+                        2 * result.cost_scale / result.epsilon,
+                        2 * result.cost_scale, result.precision,
+                        result.block_m, result.block_n)
     col_px = apply_plan(result, torch.cat((torch.ones_like(result.a[:, None]), result.x), 1), transpose=True)
     return 2 * result.cost_scale * (col_px[:, :1] * result.y - col_px[:, 1:])
 

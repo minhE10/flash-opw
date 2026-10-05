@@ -5,6 +5,8 @@ __pycache__/
 *.egg-info/
 .venv/
 .venv-linux/
+.venv-linux36/
+.venv-baselines/
 venv/
 build/
 dist/
