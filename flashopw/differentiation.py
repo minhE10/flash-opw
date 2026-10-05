@@ -47,10 +47,40 @@ def _conjugate_gradient(matvec, rhs, *, damping, max_iters, rtol, atol):
     residual = project(residual)
     direction = residual.clone()
     residual_sq = torch.dot(residual, residual)
-    initial = float(torch.sqrt(residual_sq))
     # rtol=atol=0 intentionally disables convergence-based early stopping.
     # This is the fixed-K CG protocol used by the paper's HVP benchmark.
     fixed_iterations = rtol == 0 and atol == 0
+    if fixed_iterations:
+        # Keep scalar decisions on the device. Converting a CUDA scalar to a
+        # Python float in every CG iteration synchronizes the GPU and makes a
+        # fast streaming matvec wait on the CPU 50 times per HVP.
+        initial_sq = residual_sq
+        active = residual_sq > 0
+        breakdown = torch.zeros_like(active)
+        for _ in range(max_iters):
+            product = project(matvec(direction))
+            curvature = torch.dot(direction, product)
+            valid = active & torch.isfinite(curvature) & (curvature > 0)
+            safe_curvature = torch.where(valid, curvature, torch.ones_like(curvature))
+            step = torch.where(valid, residual_sq / safe_curvature,
+                               torch.zeros_like(residual_sq))
+            solution = solution + step * direction
+            next_residual = project(residual - step * product)
+            next_sq = torch.dot(next_residual, next_residual)
+            safe_residual_sq = torch.where(residual_sq > 0, residual_sq,
+                                           torch.ones_like(residual_sq))
+            beta = torch.where(valid, next_sq / safe_residual_sq,
+                               torch.zeros_like(next_sq))
+            direction = next_residual + beta * direction
+            residual, residual_sq = next_residual, next_sq
+            breakdown = breakdown | (active & ~valid)
+            active = valid & torch.isfinite(next_sq) & (next_sq > 0)
+        initial = float(torch.sqrt(initial_sq))
+        final = float(torch.sqrt(residual_sq))
+        return solution, HVPInfo(False, max_iters, final, initial, damping,
+                                 bool(breakdown))
+
+    initial = float(torch.sqrt(residual_sq))
     threshold = -1.0 if fixed_iterations else max(float(atol), float(rtol) * initial)
     if initial == 0 or initial <= threshold:
         return solution, HVPInfo(True, 0, initial, initial, damping)

@@ -113,6 +113,26 @@ def test_hadamard_transport_kernel():
     )
 
 
+@pytest.mark.parametrize("d", [64, 129, 256, 1024])
+def test_wide_transport_and_hadamard_against_dense(d):
+    """Exercise the output tiles used by wide gradients and HVPs."""
+    x, y, a, b = make_dataset("gaussian", 17, 29, d, device="cuda", weighted=True)
+    result = sinkhorn_flash(x, y, a=a, b=b, epsilon=0.7,
+                            n_iters=20, precision="ieee")
+    plan = materialize_plan(result)
+    generator = torch.Generator(device="cuda").manual_seed(21)
+    values = torch.randn((len(y), d), device="cuda", generator=generator)
+    left = torch.randn((len(x), d), device="cuda", generator=generator) / d**0.5
+    right = torch.randn((len(y), d), device="cuda", generator=generator) / d**0.5
+    torch.testing.assert_close(apply_plan(result, values), plan @ values,
+                               rtol=1e-3, atol=1e-5)
+    expected = (plan * (left @ right.T)) @ values
+    torch.testing.assert_close(
+        apply_plan_hadamard(result, left, right, values, precision="ieee"),
+        expected, rtol=2e-3, atol=2e-5,
+    )
+
+
 def test_flash_hvp_and_double_backward_against_dense():
     x, y, a, b = make_dataset("gaussian", 17, 23, 3, device="cuda", weighted=True)
     direction = torch.randn_like(x)

@@ -301,32 +301,58 @@ def _jax_operation(experiment, x, y, args):
     import jax
     import jax.numpy as jnp
     from jax import config as jax_config
-    from ott.geometry import pointcloud
-    from ott.problems.linear import linear_problem
-    from ott.solvers.linear import implicit_differentiation, sinkhorn
 
     if not any(device.platform == "gpu" for device in jax.devices()):
         raise RuntimeError(f"JAX sees no GPU: {jax.devices()}")
     is_hvp = experiment.startswith("hvp")
     iterations = args.hvp_sinkhorn_iters if is_hvp else args.iters
     jax_config.update("jax_default_matmul_precision", "highest" if is_hvp or args.precision == "ieee" else "default")
+    if is_hvp:
+        from .jax_hvp import hvp_from_shifted_potentials
+
+        # Use the same converged coupling as the Torch and KeOps HVP paths.
+        # JAX's linearize(grad(OTT loss)) builds a huge differentiation graph
+        # and OOMs even at 5k points on a 16 GB card. All JAX arrays are
+        # dynamic JIT inputs; the timed section is the fixed-step Schur solve.
+        base = sinkhorn_flash(
+            x, y, epsilon=args.epsilon, n_iters=iterations,
+            schedule="symmetric", precision="ieee",
+            block_m=args.block_m, block_n=args.block_n,
+        )
+        generator = torch.Generator(device=x.device).manual_seed(args.seed + 991)
+        direction = torch.randn(x.shape, dtype=x.dtype, device=x.device, generator=generator)
+        direction /= direction.norm().clamp_min(torch.finfo(direction.dtype).tiny)
+
+        def to_jax(tensor):
+            return jax.device_put(jnp.asarray(tensor.detach().cpu().numpy()))
+
+        operands = tuple(to_jax(tensor) for tensor in
+                         (x, y, base.u, base.v, direction))
+        operation = jax.jit(
+            hvp_from_shifted_potentials,
+            static_argnames=("epsilon", "damping", "cg_iters", "block_rows", "block_keys"),
+        )
+
+        def run_hvp():
+            return operation(*operands, epsilon=args.epsilon,
+                             damping=args.hvp_damping, cg_iters=args.hvp_cg_iters,
+                             block_rows=64, block_keys=args.jax_batch_size)
+
+        return (run_hvp, jax,
+                f"JAX matrix-free streaming; shared potentials; "
+                f"fixed {args.hvp_cg_iters}-step Schur CG")
+
+    from ott.geometry import pointcloud
+    from ott.problems.linear import linear_problem
+    from ott.solvers.linear import sinkhorn
+
     xj = jax.device_put(jnp.asarray(x.detach().cpu().numpy()))
     yj = jax.device_put(jnp.asarray(y.detach().cpu().numpy()))
     aj = jnp.full((len(x),), 1.0 / len(x), dtype=jnp.float32)
     bj = jnp.full((len(y),), 1.0 / len(y), dtype=jnp.float32)
-    implicit = None
-    if is_hvp:
-        implicit = implicit_differentiation.ImplicitDiff(
-            solver=implicit_differentiation.solve_jax_cg,
-            solver_kwargs={
-                "maxiter": args.hvp_cg_iters, "tol": 0.0, "atol": 0.0,
-                "ridge_identity": args.hvp_damping,
-            },
-            symmetric=True,
-        )
     solver = sinkhorn.Sinkhorn(
         threshold=-1.0, min_iterations=iterations, max_iterations=iterations,
-        use_danskin=not is_hvp, implicit_diff=implicit,
+        use_danskin=True,
     )
 
     def loss(source):
@@ -343,15 +369,7 @@ def _jax_operation(experiment, x, y, args):
         return lambda: operation(xj), jax, "JAX wall clock; OTT Danskin forward + source gradient"
     if experiment.startswith("memory"):
         raise NotImplementedError("JAX peak allocation is not exposed through the PyTorch allocator")
-    generator = torch.Generator().manual_seed(args.seed + 991)
-    vector = jnp.asarray(torch.randn(x.shape, generator=generator).numpy())
-    vector = vector / jnp.linalg.norm(vector)
-    gradient = jax.grad(loss)
-    primal_gradient, linearized_gradient = jax.linearize(gradient, xj)
-    jax.block_until_ready(primal_gradient)
-    operation = jax.jit(linearized_gradient)
-    return (lambda: operation(vector), jax,
-            f"JAX wall clock; OTT implicit HVP; fixed {args.hvp_cg_iters}-step CG")
+    raise ValueError(f"unsupported JAX experiment: {experiment}")
 
 
 def _tensorized_estimate_mib(n, m, backward):
@@ -381,6 +399,8 @@ def _draw_panel(axis, experiment, rows, show_title=True):
         if not points:
             continue
         label, color, marker = STYLE[method]
+        if experiment.startswith("hvp") and method == "jax":
+            label = "JAX (matrix-free)"
         if experiment.startswith("memory") and len(points) >= 2:
             log_x = [math.log(row["axis_value"]) for row in points]
             log_y = [math.log(row["mean"]) for row in points if row["mean"] > 0]
@@ -469,7 +489,9 @@ def _parse_args():
     parser.add_argument("--hvp-dimension-n", type=int, default=10000)
     parser.add_argument("--hvp-fixed-d", type=int, default=64)
     parser.add_argument("--hvp-baseline-max-n", type=int, default=10000,
-                        help="paper plotting range for KeOps/JAX in the HVP n sweep")
+                        help="JAX plotting limit for the HVP n sweep")
+    parser.add_argument("--hvp-keops-max-n", type=int, default=50000,
+                        help="KeOps plotting limit for the HVP n sweep")
     parser.add_argument("--hvp-baseline-max-d", type=int, default=128,
                         help="paper plotting range for KeOps/JAX in the HVP d sweep")
     parser.add_argument("--epsilon", type=float, default=0.1)
@@ -492,7 +514,8 @@ def _parse_args():
     args = parser.parse_args()
     all_sizes = args.n_sizes + args.d_sizes + args.hvp_n_sizes + args.hvp_d_sizes
     if min(all_sizes + [args.dimension_n, args.hvp_dimension_n, args.hvp_fixed_d,
-                        args.hvp_baseline_max_n, args.hvp_baseline_max_d]) < 1:
+                        args.hvp_baseline_max_n, args.hvp_keops_max_n,
+                        args.hvp_baseline_max_d]) < 1:
         parser.error("sizes must be positive")
     if max(args.d_sizes + args.hvp_d_sizes + [args.hvp_fixed_d]) > 1024:
         parser.error("this FlashSinkhorn implementation supports d <= 1024")
@@ -522,9 +545,12 @@ def main():
         "precision": "TF32 forward/backward; strict FP32 HVP by default",
         "panel_methods": PANEL_METHODS,
         "hvp_baseline_range": {
-            "max_n": args.hvp_baseline_max_n,
+            "jax_max_n": args.hvp_baseline_max_n,
+            "keops_max_n": args.hvp_keops_max_n,
             "max_d": args.hvp_baseline_max_d,
         },
+        "jax_hvp": "custom matrix-free JAX Schur-CG with shared Flash potentials; not OTT-Hessian",
+        "tensorized_forward": "dense squared-distance matrix precomputed and cached outside timing, matching the official benchmark",
         "tiles": "fixed RTX-safe upper bounds; no A100 autotuning",
     }
     (output / "environment.json").write_text(json.dumps(environment, indent=2), encoding="utf-8")
@@ -544,7 +570,13 @@ def main():
                                     "not_applicable", "method omitted from this panel in the paper")
                     _write_results(output, rows)
                     continue
-                if (experiment == "hvp_n" and method in ("keops", "jax") and
+                if (experiment == "hvp_n" and method == "keops" and
+                        n > args.hvp_keops_max_n):
+                    _record_failure(rows, experiment, axis_value, n, m, d, method,
+                                    "outside_paper_range", "KeOps omitted beyond configured HVP n range")
+                    _write_results(output, rows)
+                    continue
+                if (experiment == "hvp_n" and method == "jax" and
                         n > args.hvp_baseline_max_n):
                     _record_failure(rows, experiment, axis_value, n, m, d, method,
                                     "outside_paper_range", "baseline omitted beyond the paper's HVP n range")

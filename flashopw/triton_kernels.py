@@ -24,6 +24,21 @@ def feature_block(d):
     return min(128, max(32, triton.next_power_of_2(d)))
 
 
+def value_block(columns, d):
+    """Amortize the score/LSE pass over more output channels when possible.
+
+    A separate program recomputes every score tile for each output block.
+    Using 32 channels for P @ Y at d=1024 repeated that work 32 times;
+    128 channels needs only eight passes while fitting RTX shared memory with
+    the conservative 16x32 query/key tiles used for large dimensions.
+    """
+    if columns < 64:
+        return 32
+    # The d<=64 launch uses 32x64 tiles, twice the score area of the wide-d
+    # 16x32 launch. Keep its output tile smaller to avoid excessive residency.
+    return 64 if d <= 64 else 128
+
+
 def hadamard_launch_config(d, rank, block_m, block_n):
     """Use smaller tiles when the HVP kernel keeps two dot products live."""
     block_m, block_n, stages = launch_config(d, block_m, block_n)
@@ -247,11 +262,12 @@ def apply(q, k, u, v, values, scale, precision, block_m, block_n):
     import torch
 
     block_m, block_n, stages = launch_config(q.shape[1], block_m, block_n)
+    block_p = value_block(values.shape[1], q.shape[1])
     out = torch.empty((len(q), values.shape[1]), device=q.device, dtype=q.dtype)
     with torch.cuda.device(q.device):
-        _apply_kernel[(triton.cdiv(len(q), block_m), triton.cdiv(values.shape[1], 32))](
+        _apply_kernel[(triton.cdiv(len(q), block_m), triton.cdiv(values.shape[1], block_p))](
             q, k, u, v, values, out, len(q), len(k), q.shape[1], values.shape[1],
-            scale, precision, block_m, block_n, feature_block(q.shape[1]), 32,
+            scale, precision, block_m, block_n, feature_block(q.shape[1]), block_p,
             num_warps=4, num_stages=stages, enable_fp_fusion=False)
     return out
 
@@ -262,15 +278,20 @@ def hadamard_apply(q, k, u, v, left, right, values, scale, precision, block_m, b
     block_m, block_n, stages = hadamard_launch_config(
         q.shape[1], left.shape[1], block_m, block_n,
     )
+    # This kernel also keeps a second feature dot product live. Cap its value
+    # tile at 64 for wide inputs to preserve the 64 KiB shared-memory budget.
+    block_p = (min(64, value_block(values.shape[1], q.shape[1]))
+               if max(q.shape[1], left.shape[1]) >= 256 else
+               value_block(values.shape[1], q.shape[1]))
     out = torch.empty((len(q), values.shape[1]), device=q.device, dtype=q.dtype)
     with torch.cuda.device(q.device):
         _hadamard_apply_kernel[
-            (triton.cdiv(len(q), block_m), triton.cdiv(values.shape[1], 32))
+            (triton.cdiv(len(q), block_m), triton.cdiv(values.shape[1], block_p))
         ](
             q, k, u, v, left, right, values, out,
             len(q), len(k), q.shape[1], left.shape[1], values.shape[1],
             scale, precision, block_m, block_n, feature_block(q.shape[1]),
-            feature_block(left.shape[1]), 32,
+            feature_block(left.shape[1]), block_p,
             num_warps=4, num_stages=stages, enable_fp_fusion=False,
         )
     return out

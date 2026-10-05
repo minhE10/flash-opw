@@ -49,13 +49,17 @@ def main():
                         (kernels._symmetric_update_kernel,
                          ("Q", "K", "U", "V", "LOGA", "LOGB", "UOUT", "VOUT"), {}),
                         (kernels._apply_kernel, ("Q", "K", "U", "V", "VALUES", "OUT"),
-                         dict(P=35, BP=32)),
+                         dict(P=129 if d >= 64 else 35,
+                              BP=kernels.value_block(129 if d >= 64 else 35, d))),
                     ])
                 if (bm, bn, stages) in hadamard_configurations:
                     variants.append((
                         kernels._hadamard_apply_kernel,
                         ("Q", "K", "U", "V", "LEFT", "RIGHT", "VALUES", "OUT"),
-                        dict(R=d, P=35, BR=kernels.feature_block(d), BP=32),
+                        dict(R=d, P=129 if d >= 64 else 35,
+                             BR=kernels.feature_block(d),
+                             BP=(min(64, kernels.value_block(129, d))
+                                 if d >= 256 else kernels.value_block(129 if d >= 64 else 35, d))),
                     ))
                 for fn, pointers, extra in variants:
                     source = ASTSource(fn, signature={name: "*fp32" for name in pointers}, constexprs={**base, **extra})

@@ -215,10 +215,23 @@ fixed RTX-safe tile upper bounds instead of the paper's A100 autotuning search;
 this hardware-specific difference is recorded in `environment.json` and can
 change absolute timings.
 
-The HVP defaults reproduce the plotting ranges: FlashSinkhorn extends to
-`n=50,000` and `d=512`, while KeOps/JAX stop at `n=10,000` and `d=128`.
+The HVP defaults extend FlashSinkhorn and KeOps to `n=50,000`, while JAX
+stops at `n=10,000`; all three use at most `d=128` except FlashSinkhorn,
+which extends to `d=512`. The JAX HVP is a custom blockwise, matrix-free
+Schur-CG implementation using the same cached FlashSinkhorn potentials as
+the other two methods; it is not the paper's OTT-Hessian package. It replaces
+the previous `jax.linearize(grad(loss))` benchmark, which constructed an
+unbounded differentiation graph and OOMed at every plotted size on 16 GB.
+The streaming transport kernels now aggregate up to 128 output channels per
+score pass for wide dimensions (64 for wide Hadamard HVPs) to reduce repeated
+score computation. The Tensorized cost matrix is deliberately precomputed
+outside forward timing, as in the official benchmark. Consequently, a
+Tensorized win at `d=1024` is expected rather than a correctness failure;
+Appendix H, Tables 10--11 report the same crossover on A100.
+Actual CUDA compile success and speedups must be checked on the server after
+pulling this change.
 Memory panels contain only alternating FlashSinkhorn and Tensorized, and HVP
-panels contain symmetric FlashSinkhorn, KeOps and JAX, matching the paper.
+panels contain symmetric FlashSinkhorn, KeOps and JAX.
 
 ## Kết quả và cách so sánh
 
