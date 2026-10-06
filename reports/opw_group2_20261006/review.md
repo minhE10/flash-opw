@@ -1,6 +1,8 @@
 # Nhóm 2: kết quả ablation CPU FlashOPW
 
-Ngày chạy: 06/10/2026. **CPU FP64 đã hoàn tất; Flash CUDA cần chạy trên server.**
+Ngày chạy: 06/10/2026. **CPU FP64 đã hoàn tất. GPU server đã chạy và được audit:**
+108 hàng MAP/ACC được tính lại khớp artifact; ranking CPU/GPU trùng toàn bộ.
+Xem [báo cáo GPU nhóm2](../opw_group2_gpu_20261006/review.md).
 [Protocol và lệnh](../../docs/opw_group2.md),
 [kế hoạch nhóm1–6](../../docs/opw_experiment_plan.md).
 
@@ -144,7 +146,7 @@ TRAIN-only/freeze/resume và dense FP32 so với FP64. GPU end-to-end test đã 
 `numerical_parity_failures=0` của CPU run không xác nhận Flash GPU, vì CUDA
 chưa thực hiện trong run này.
 
-## Bước tiếp theo trên server
+## Lệnh GPU đã thực hiện trên server
 
 ```bash
 cd /home/doanpt/minh.nd/flash-opw
@@ -156,9 +158,9 @@ bash scripts/run_opw_group2.sh 1 \
   --output outputs/opw_group2_gpu_v1
 ```
 
-GPU run bổ sung Flash IEEE FP32 cho affine và dense CUDA FP32 cho exact;
-so với FP64 tại fixed100/200. Chờ output server để xác nhận các ablation
-trên GPU. Gửi `ablation_results.csv`, `contrasts.json`, `summary.json` và
-`environment.json`, tốt nhất cả folder. Không cần chạy lại tuning hoặc TEST.
+GPU run đã bổ sung Flash IEEE FP32 cho affine và dense CUDA FP32 cho exact;
+so với FP64 tại fixed100/200 đều đạt. Artifact server đã được audit tại
+[report GPU](../opw_group2_gpu_20261006/review.md); mọi adaptive pair đạt tau
+và ranking CPU/GPU khớp. Không cần chạy lại experiment2 hiện tại.
 Nhóm3 tiếp theo cần tuning công bằng từng metric trong đúng đơn vị prior;
 nhóm4 mới xác nhận chất lượng trên TEST đầy đủ và uncertainty.

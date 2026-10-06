@@ -1,0 +1,20 @@
+{
+  "status": "completed",
+  "completed_chunks": 14,
+  "numerical_parity_failures": 0,
+  "capped_pairs": {
+    "CPU_FP64__affine_default__residual_stop": 0,
+    "CPU_FP64__exact_relative_default__residual_stop": 0,
+    "CPU_FP64__exact_journal_default__residual_stop": 0,
+    "CPU_FP64__affine_tuned__residual_stop": 0,
+    "CPU_FP64__exact_relative_tuned__residual_stop": 0,
+    "CPU_FP64__exact_journal_tuned__residual_stop": 0,
+    "GPU_FP32__affine_default__residual_stop": 0,
+    "GPU_FP32__exact_relative_default__residual_stop": 0,
+    "GPU_FP32__exact_journal_default__residual_stop": 0,
+    "GPU_FP32__affine_tuned__residual_stop": 0,
+    "GPU_FP32__exact_relative_tuned__residual_stop": 0,
+    "GPU_FP32__exact_journal_tuned__residual_stop": 0
+  },
+  "flash_verification": "executed"
+}

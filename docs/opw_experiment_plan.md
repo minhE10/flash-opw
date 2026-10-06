@@ -146,10 +146,13 @@ CSV GPU đã xác nhận hội tụ pilot: tất cả224 cặp default đạt ta
 tuned tại1000; tau=1e-4 đạt toàn bộ tại500(default),2000(tuned).
 Còn chờ summary GPU để xác nhận matrix score parity và tổng trạng thái run.
 Xem [báo cáo nhóm1](../reports/opw_group1_20261006/review.md) và artifact đã lưu.
-Nhóm2 đã hoàn tất CPU pilot: cả sáu cost đạt tau=1e-3 trên224 cặp mỗi cost;
-54 hàng MAP/ACC và contrasts đã lưu trong
-[báo cáo nhóm2](../reports/opw_group2_20261006/review.md). GPU chạy server bằng
-`scripts/run_opw_group2.sh`; chưa nhận artifact nhóm2 CUDA. Nhóm3–6 là kế hoạch.
+Nhóm2 đã hoàn tất CPU và GPU pilot: cả sáu cost đạt tau=1e-3 trên224 cặp mỗi
+cost/backend; không có numerical parity failure. Đã tính lại108 hàng MAP/ACC;
+ranking CPU/GPU trùng toàn bộ trong54 phép so model/mode/score. Xem
+[báo cáo CPU nhóm2](../reports/opw_group2_20261006/review.md) và
+[báo cáo GPU nhóm2](../reports/opw_group2_gpu_20261006/review.md).
+Artifact GPU đã được audit từ ZIP ở commit a1785d9; báo cáo gọn và bản local
+được giữ sau khi bỏ ZIP khỏi phiên bản hiện tại. Nhóm3–6 là kế hoạch.
 Runner hiện có: correctness tests, tuning Flash, k-NN cố định, GPU scaling
 ở số vòng cố định. Tuning các baseline, statistical analysis và throughput
 batch còn cần bổ sung khi thực hiện các nhóm tương ứng.
