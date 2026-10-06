@@ -190,7 +190,9 @@ def choose_candidate(rows):
     valid = [row for row in rows if row["eligible"]]
     if not valid:
         return None
-    return max(valid,key=lambda row:(row["mean_ACC1"],row["mean_MAP"],-row["candidate"]))
+    # Equal correct counts can produce means differing by a final float bit.
+    # Preserve the declared MAP tie-break at those numerical accuracy ties.
+    return max(valid,key=lambda row:(round(row["mean_ACC1"],12),row["mean_MAP"],-row["candidate"]))
 
 
 def load_frozen(path, *, dataset=None, training_sha256=None):
@@ -205,6 +207,8 @@ def load_frozen(path, *, dataset=None, training_sha256=None):
             raise ValueError(f"Selection {key} mismatch")
     if len(set(value["seeds"])) != 3 or value["objective"] != ["mean_ACC1","mean_MAP","earliest_candidate"]:
         raise ValueError("Invalid selection protocol")
+    if value.get("accuracy_tie_decimals") not in (None,12):
+        raise ValueError("Invalid numerical accuracy tie policy")
     if set(value["selected"]) != set(METRICS):
         raise ValueError("Incomplete metric selection")
     for metric,row in value["selected"].items():
@@ -284,6 +288,7 @@ def main():
             raise ValueError("Resume refused: code/data/settings/environment changed")
     else:
         environment.update(signature=signature,protocol=PROTOCOL,test_used=False,
+                           accuracy_tie_decimals=12,
                            input_precision="round TRAIN values to FP32, then feed identical values to FP64/FP32",
                            objective=["mean_ACC1","mean_MAP","earliest_candidate"],
                            preset_label="repo journal hyperparameter presets; common adaptive iteration policy",
@@ -292,7 +297,7 @@ def main():
                            backends="CPU FP64 explicit control; CUDA Flash IEEE FP32 + dense FP32 entropic references; DTW/SoftDTW/LP CPU")
         atomic_json(output/"environment.json",environment)
         atomic_json(output/"candidate_manifest.json",dict(protocol=PROTOCOL,objective=environment["objective"],
-                    solver_policy=policy,candidates=grids,splits=splits,test_used=False))
+                    solver_policy=policy,candidates=grids,splits=splits,test_used=False,accuracy_tie_decimals=12))
     total_jobs = sum(map(len,grids.values()))*3
     completed,details = 0,[]
     print(f"Group3: TRAIN-only; seeds={args.seeds}; {args.queries} queries x {args.gallery} gallery per split; {device}; budget={args.budget}; tau={args.tau}",flush=True)
@@ -365,6 +370,7 @@ def main():
     artifact = dict(schema=SCHEMA,status="failed" if failed else "completed",protocol=PROTOCOL,
                     dataset=args.dataset,training_sha256=origin["training_sha256"],test_used=False,
                     seeds=args.seeds,splits=splits,objective=["mean_ACC1","mean_MAP","earliest_candidate"],
+                    accuracy_tie_decimals=12,
                     solver_policy=policy,score_conventions={"flash-opw":"literal main Eq19", "tlp":"<P,D+wF>",
                     "tcot":"<P,D*(1+abs(delta))>","other_entropic":"<P,D>","soft-dtw":"raw soft DTW; no divergence"},
                     budget=args.budget,candidate_counts={m:len(g) for m,g in grids.items()},

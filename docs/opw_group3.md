@@ -19,6 +19,8 @@ FlashOPW vẫn dùng cost affine và score Eq.19 của `main (2).pdf`.
 * Chọn một candidate cho mỗi metric bằng **mean ACC@1 trên ba split**, sau đó
   **mean MAP trên ba split**, cuối cùng candidate xuất hiện sớm hơn. Không chọn
   ba model riêng theo từng seed. SD là sample SD giữa split, không phải CI.
+  ACC so ở12 chữ số thập phân để các tổng correct count bằng nhau không bị
+  tách thành hai nhóm bởi roundoff cuối của float; MAP vẫn phá hòa như đã khai báo.
 * MAP tính trên toàn gallery của split; vote/tie rules của `retrieval.py`.
   Không tuning k. Sau selection, đánh giá TEST độc lập thuộc nhóm 4.
 * Cùng tiêu chí OT regularized: `max(row_L1,col_L1) <= 1e-3`, kiểm tra mỗi
@@ -123,6 +125,13 @@ File này **không** thay thế hoặc ghi đè JSON Flash-only cũ, và không 
 cho `opw_knn --flash-parameters` (runner cũ dùng fixed iterations/schema khác).
 Nhóm4 sẽ dùng policy và tham số mới cho cả presets lẫn tuned trước khi so TEST.
 
-Local reference run dùng `.venv-baselines/Scripts/python.exe -m
-experiments.opw_group3 --device cpu --budget 6 --output
-outputs/opw_group3_cpu_20261006`. Kết quả CPU và GPU phải giữ thư mục riêng.
+Local reference pilot dùng `.venv-baselines/Scripts/python.exe -m
+experiments.opw_group3 --device cpu --budget 3 --output
+outputs/opw_group3_cpu_budget3_20261006` (75 job). Pilot CPU có ngân sách
+nhỏ hơn run GPU6, nên không gộp hai bảng hoặc giả định cùng selections.
+Run CPU6 ban đầu dừng trước selection do chi phí wall của entropy nhỏ;
+26 job hoàn tất được giữ tại `outputs/opw_group3_cpu_20261006`, không dùng
+partial run này làm bảng tuned. Kết quả CPU/GPU giữ thư mục riêng.
+Pilot CPU3 đang chạy từ source82cb6ab với tie comparison float nguyên bản;
+run GPU mới có trường `accuracy_tie_decimals=12`. Auditor giữ đúng tie policy
+ghi trong từng artifact (trường vắng nghĩa là policy float của bản trước).

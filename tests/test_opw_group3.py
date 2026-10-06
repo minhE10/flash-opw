@@ -64,6 +64,12 @@ def test_ineligible_accuracy_winner_cannot_be_frozen_and_tie_is_declared():
     assert group3.choose_candidate([rows[1]]) is None
 
 
+def test_map_breaks_accuracy_ties_despite_final_float_bit_roundoff():
+    rows = [dict(candidate=0,eligible=True,mean_ACC1=.5+2e-16,mean_MAP=.6),
+            dict(candidate=1,eligible=True,mean_ACC1=.5,mean_MAP=.7)]
+    assert group3.choose_candidate(rows)["candidate"] == 1
+
+
 def test_runner_reads_train_only_freezes_all_metrics_and_refuses_changed_resume(tmp_path,monkeypatch):
     dataset = tmp_path/"data.npz"
     rng = np.random.default_rng(19)

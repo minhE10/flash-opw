@@ -1,6 +1,7 @@
 """Recompute group-three quality/selection from NPZ matrices without re-solving."""
 
 import argparse
+import csv
 import hashlib
 import json
 from pathlib import Path
@@ -25,6 +26,7 @@ def audit(output, *, data_root=Path("data/opw"), dataset_file=None):
     if (selection["grids"] != grids or manifest["candidates"] != grids
             or manifest["protocol"] != PROTOCOL or manifest["splits"] != selection["splits"]
             or manifest["solver_policy"] != selection["solver_policy"]
+            or manifest.get("accuracy_tie_decimals") != selection.get("accuracy_tie_decimals")
             or environment["signature"]["grids"] != grids):
         raise ValueError("Manifest/selection/declared search mismatch")
     _,labels,origin = load_training(selection["dataset"],data_root,dataset_file)
@@ -78,6 +80,7 @@ def audit(output, *, data_root=Path("data/opw"), dataset_file=None):
     # Rebuild means and eligibility from matrices before inspecting selected IDs.
     # This checks that the freeze followed the declared rule, not its TEST score.
     recomputed = {}
+    all_rows, preset_rows, selected_rows = [], [], []
     for metric in METRICS:
         rows = []
         for candidate in range(len(grids[metric])):
@@ -93,7 +96,15 @@ def audit(output, *, data_root=Path("data/opw"), dataset_file=None):
         valid = [r for r in rows if r["capped_pairs"] == 0]
         if not valid:
             raise ValueError(f"No eligible candidate: {metric}")
-        winner = sorted(valid,key=lambda r:(-r["mean_ACC1"],-r["mean_MAP"],r["candidate"]))[0]
+        decimals = selection.get("accuracy_tie_decimals")
+        winner = sorted(valid,key=lambda r:(-(round(r["mean_ACC1"],decimals) if decimals is not None else r["mean_ACC1"]),
+                                            -r["mean_MAP"],r["candidate"]))[0]
+        for row in rows:
+            row.update(metric=metric,eligible=row["capped_pairs"] == 0,
+                       parameters=grids[metric][row["candidate"]])
+        all_rows.extend(rows)
+        preset_rows.append(rows[0])
+        selected_rows.append(winner)
         for field,row in (("selected",winner),("presets",rows[0])):
             stored = selection[field][metric]
             if (any(stored[k] != row[k] for k in row) or stored["eligible"] != (row["capped_pairs"] == 0)
@@ -101,11 +112,18 @@ def audit(output, *, data_root=Path("data/opw"), dataset_file=None):
                 raise ValueError(f"Frozen {field} mismatch: {metric}")
         recomputed[metric] = dict(selected_candidate=winner["candidate"],
                                  eligible_candidates=len(valid),attempted_candidates=len(rows))
+    for name,expected in (("candidate_results.csv",all_rows),("preset_results.csv",preset_rows),
+                          ("tuned_results.csv",selected_rows)):
+        with (output/name).open(newline="",encoding="utf-8") as stream:
+            stored = list(csv.DictReader(stream))
+        if stored != [{k:str(v) for k,v in row.items()} for row in expected]:
+            raise ValueError(f"Recomputed CSV mismatch: {name}")
     return dict(status="passed",jobs_verified=len(jobs),metrics_verified=len(METRICS),
                 test_used=False,training_sha256=origin["training_sha256"],
                 checks=["declared grids and equal tunable budgets", "TRAIN labels and indices", "NPZ hashes",
                         "AP, MAP and predictions for every job", "residuals, caps and iteration counters",
-                        "three-split means/SD and ACC-first selection", "preset and selected parameters"],
+                        "three-split means/SD and ACC-first selection", "preset and selected parameters",
+                        "all three result CSV tables"],
                 selections=recomputed,matrix_sha256=matrix_hashes,
                 limits="No independent re-solve or GPU numerical parity claim; CUDA tests and group1/2 supply solver verification")
 
