@@ -1,6 +1,9 @@
 # Nhóm 1: correctness và hội tụ FlashOPW
 
-Ngày chạy: 06/10/2026. **Phần CPU đã hoàn tất; Flash CUDA chưa được chạy tại máy local.**
+Ngày chạy: 06/10/2026. **Phần CPU đã hoàn tất; đã nhận console log Flash CUDA
+do người dùng chạy trên server.** GPU log: 40/40 parity case đạt, 12 matrix có
+NN agreement 100% so với FP64 cùng số vòng; còn chờ artifact để xác nhận
+tổng trạng thái và marginal GPU. Xem [đánh giá GPU log](gpu_log_review.md).
 Kế hoạch đầy đủ: [experiment 1–6](../../docs/opw_experiment_plan.md).
 
 ## Protocol đã thực hiện
@@ -93,7 +96,7 @@ Unit/integration tests kiểm tra oracle incremental so với restart, hai margi
 ranking khi margin nhỏ, TRAIN-only end-to-end, freeze artifact và resume từ chối
 code/settings khác. GPU end-to-end test đã có nhưng cần server thực hiện.
 
-## Phần còn lại: chạy Flash trên GPU server
+## Lệnh GPU và thu thập kết quả server
 
 ```bash
 cd /home/doanpt/minh.nd/flash-opw
@@ -115,4 +118,6 @@ CPU thread. Nếu allocation hiện hành khác GPU1, giữ allocation đã đư
 Nếu gián đoạn, chạy lại cùng lệnh với `--resume`; không đổi code, dữ liệu,
 selection hoặc môi trường. Dùng output mới khi thay settings/phiên bản. Gửi
 folder `outputs/opw_group1_gpu_v1` để kiểm tra parity, convergence và rankings.
-**Chỉ sau kết quả này mới kết luận phần correctness của Flash CUDA đã đạt.**
+Console log đã xác nhận parity case đạt; cần summary và convergence của GPU
+để đóng phần numerical parity toàn matrix và hội tụ. Artifact đang lưu trong
+report này là CPU run; không thay thế bằng số suy đoán từ GPU console.
