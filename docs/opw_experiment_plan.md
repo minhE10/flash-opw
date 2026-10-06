@@ -144,7 +144,7 @@ trước khi mở full split; ưu tiên baseline quan trọng, caching và batch
 kiểm tra correctness. Chưa gọi là tái hiện journal nếu feature, split, cost,
 parameters hoặc evaluation protocol còn khác.
 
-Trạng thái 06/10/2026: nhóm1 đã hoàn tất phần CPU (52/52 parity checks đạt;
+Trạng thái cập nhật 07/10/2026: nhóm1 đã hoàn tất phần CPU (52/52 parity checks đạt;
 224 cặp mỗi cấu hình, sweep đến 2000 vòng). Đã nhận console log Flash CUDA:
 40/40 parity case đạt; 12 matrix có NN agreement 100% với FP64 cùng số vòng.
 CSV GPU đã xác nhận hội tụ pilot: tất cả224 cặp default đạt tau=1e-3 tại200,
@@ -157,9 +157,16 @@ ranking CPU/GPU trùng toàn bộ trong54 phép so model/mode/score. Xem
 [báo cáo CPU nhóm2](../reports/opw_group2_20261006/review.md) và
 [báo cáo GPU nhóm2](../reports/opw_group2_gpu_20261006/review.md).
 Artifact GPU đã được audit từ ZIP ở commit a1785d9; báo cáo gọn và bản local
-được giữ sau khi bỏ ZIP khỏi phiên bản hiện tại. Nhóm3 đã có runner tuning
-tất cả metric trên ba split TRAIN; phần CUDA chạy trên server và cần gửi lại
-artifact để audit. Nhóm4–6 vẫn là kế hoạch.
+được giữ sau khi bỏ ZIP khỏi phiên bản hiện tại. Nhóm3 GPU đã hoàn tất và
+audit138/138 job trên ba split TRAIN (28 gallery ×28 query/split),11 metric,
+6 candidate/metric có tham số. Đã tính lại quality/selection/ba CSV từ NPZ;
+36 sampled scores khớp oracle SciPy FP64 tại cùng số vòng GPU.
+Flash chọn mu50/epsilon.1: ACC79.762%,MAP74.405%; TLp80.952%/75.130%.
+Ba candidate có cap failure bị loại; selected candidates đều đạt tau1e-3.
+Xem [báo cáo nhóm3 GPU](../reports/opw_group3_gpu_20261007/review.md) và
+[file freeze tất cả metric](../reports/opw_group3_gpu_20261007/selected_all_metrics.json).
+Nhóm4–6 vẫn là kế hoạch; tiếp theo nhóm5 pilot rồi nhóm4 TEST đầy đủ như thứ
+tự đã khai báo. Chưa dùng TEST để chọn tham số hoặc đổi score.
 Runner hiện có: correctness tests, tuning Flash riêng và tuning tất cả metric,
 k-NN cố định, GPU scaling ở số vòng cố định. Đánh giá TEST với selection mới,
 statistical analysis và throughput batch còn cần bổ sung ở các nhóm tương ứng.

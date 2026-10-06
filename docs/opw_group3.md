@@ -132,6 +132,14 @@ nhỏ hơn run GPU6, nên không gộp hai bảng hoặc giả định cùng sel
 Run CPU6 ban đầu dừng trước selection do chi phí wall của entropy nhỏ;
 26 job hoàn tất được giữ tại `outputs/opw_group3_cpu_20261006`, không dùng
 partial run này làm bảng tuned. Kết quả CPU/GPU giữ thư mục riêng.
-Pilot CPU3 đang chạy từ source82cb6ab với tie comparison float nguyên bản;
+Pilot CPU3 local từ source82cb6ab hiện có47/75 job hoàn tất, chưa có file freeze;
+không dùng partial run này làm kết quả selection. Tie comparison của source
+này dùng float nguyên bản;
 run GPU mới có trường `accuracy_tie_decimals=12`. Auditor giữ đúng tie policy
 ghi trong từng artifact (trường vắng nghĩa là policy float của bản trước).
+
+Ngày07/10/2026 đã nhận/audit **GPU6 hoàn tất138/138 job** trên28×28/split.
+Xem [báo cáo và insight](../reports/opw_group3_gpu_20261007/review.md),
+[file freeze](../reports/opw_group3_gpu_20261007/selected_all_metrics.json) và
+[audit](../reports/opw_group3_gpu_20261007/audit.json). Archive đã được giữ
+nguyên tại outputs local/Git history, và được bỏ khỏi main sau khi audit.
