@@ -1,0 +1,18 @@
+n,m,d,seed,metric,backend,status,median_ms,min_ms,max_ms,repeats,score,iterations,peak_cuda_extra_bytes,detail
+16,20,1,42,flash-opw,CUDA FP32,skipped,,,,0,,5,,CUDA unavailable in explicit CPU mode; no substitute Flash timing
+16,20,1,42,affine-opw-dense-gpu,CUDA FP32,skipped,,,,0,,5,,CUDA unavailable in explicit CPU mode; no substitute Flash timing
+16,20,1,42,sinkhorn-dense-gpu,CUDA FP32,skipped,,,,0,,5,,CUDA unavailable in explicit CPU mode; no substitute Flash timing
+16,20,1,42,tlp-dense-gpu,CUDA FP32,skipped,,,,0,,5,,CUDA unavailable in explicit CPU mode; no substitute Flash timing
+16,20,1,42,opw-kl-dense-gpu,CUDA FP32,skipped,,,,0,,20,,CUDA unavailable in explicit CPU mode; no substitute Flash timing
+16,20,1,42,tcot-dense-gpu,CUDA FP32,skipped,,,,0,,5,,CUDA unavailable in explicit CPU mode; no substitute Flash timing
+16,20,1,42,opw-dense-gpu,CUDA FP32,skipped,,,,0,,20,,CUDA unavailable in explicit CPU mode; no substitute Flash timing
+16,20,1,42,dtw,CPU FP64,ok,0.07549999918410322,0.07549999918410322,0.07549999918410322,1,0.6377659103174012,,,
+16,20,1,42,ldtw,CPU FP64,ok,0.10860000020329608,0.10860000020329608,0.10860000020329608,1,0.03986036939483757,,,
+16,20,1,42,ndtw,CPU FP64,ok,0.1201999994009384,0.1201999994009384,0.1201999994009384,1,0.03188829551587006,,,
+16,20,1,42,soft-dtw,CPU FP64,ok,0.1554000000396627,0.1554000000396627,0.1554000000396627,1,0.047254028779098844,,,
+16,20,1,42,ot,CPU FP64,ok,12.170399999376968,12.170399999376968,12.170399999376968,1,0.007400668496862608,,,
+16,20,1,42,sinkhorn,CPU FP64,ok,2.1409000000858214,2.1409000000858214,2.1409000000858214,1,0.04138665116404924,5,,
+16,20,1,42,tlp,CPU FP64,ok,5.750199999965844,5.750199999965844,5.750199999965844,1,0.1371299415979353,5,,
+16,20,1,42,opw-kl,CPU FP64,ok,10.987499999828287,10.987499999828287,10.987499999828287,1,0.06303156845475515,20,,
+16,20,1,42,tcot,CPU FP64,ok,3.643200000624347,3.643200000624347,3.643200000624347,1,0.32764833339621313,5,,
+16,20,1,42,opw,CPU FP64,ok,21.09199999995326,21.09199999995326,21.09199999995326,1,0.06420966126229005,20,,

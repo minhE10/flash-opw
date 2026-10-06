@@ -1,0 +1,121 @@
+{
+  "schema": "flashopw-training-selection-v1",
+  "protocol": "stratified holdout within official training split only",
+  "dataset": "FacesUCR",
+  "training_sha256": "0a41a8b41d240c060ef1d5516dda64e343e5965634f1c021ab7eae36b6eafc1d",
+  "parameters": {
+    "lambda1": 1.0,
+    "lambda2": 0.1,
+    "sigma": 0.031943828249996996,
+    "cost_scale": 1,
+    "n_iters": 200
+  },
+  "score": "pdf-loss",
+  "n_iters": 200,
+  "selection_k": 1,
+  "objective": "ACC",
+  "selected_candidate": 1,
+  "validation": {
+    "candidate": 1,
+    "parameters": {
+      "lambda1": 1.0,
+      "lambda2": 0.1,
+      "sigma": 0.031943828249996996,
+      "cost_scale": 1,
+      "n_iters": 200
+    },
+    "mu": 50.0,
+    "ACC": 0.8571428571428571,
+    "MAP": 0.742782060192498,
+    "seconds": 25.500726199999917,
+    "diagnostics": {
+      "max_marginal_l1": 0.012851309781577915,
+      "pairs": 392
+    }
+  },
+  "default_validation": {
+    "candidate": 0,
+    "parameters": {
+      "lambda1": 1.0,
+      "lambda2": 0.1,
+      "sigma": 1,
+      "cost_scale": 1,
+      "n_iters": 200
+    },
+    "mu": 1.05,
+    "ACC": 0.5714285714285714,
+    "MAP": 0.6081487028009585,
+    "seconds": 24.61294420000013,
+    "diagnostics": {
+      "max_marginal_l1": 0.0005308378427746887,
+      "pairs": 392
+    }
+  },
+  "gallery_indices": [
+    13,
+    17,
+    25,
+    27,
+    31,
+    33,
+    36,
+    49,
+    59,
+    61,
+    66,
+    67,
+    73,
+    78,
+    80,
+    87,
+    97,
+    102,
+    111,
+    116,
+    123,
+    125,
+    139,
+    154,
+    157,
+    170,
+    178,
+    185
+  ],
+  "validation_indices": [
+    2,
+    7,
+    24,
+    65,
+    71,
+    84,
+    86,
+    101,
+    106,
+    119,
+    126,
+    129,
+    148,
+    149
+  ],
+  "seed": 20261006,
+  "backend": "CPU FP64 batched dense oracle",
+  "search_source_sha256": {
+    "flashopw/__init__.py": "203330d0bc8c9b498565966c743331e5805dd1092f1208d7fbdfdb4191001b4a",
+    "flashopw/solver.py": "63fcaa0a030ebd661be71f8da996c7194527030a1b0ce3a083741fab4d016edc",
+    "flashsinkhorn/__init__.py": "25b175ded2b7d2bc2d11bcdab53b7b590229799b708c05fd684b1d84dc713eb5",
+    "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+    "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+    "flashsinkhorn/solver.py": "dfccef56f8845cffd48a2cb5a9a190332899b9f748f1105e4b0ab15a5023cabb",
+    "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+    "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+    "experiments/opw_parameters.py": "788c4bda2a4c8964d626cf45f21218b9793849161d2a6d0265794f2116a6b660",
+    "experiments/opw_tune.py": "5c34dae2e3b9f616ff926792653fe43a39140509673df4f64401dabc2105cf6b",
+    "experiments/opw_scaling.py": "a56ec96b111ebb48246f456f3db61b15237bb3f4145a664b9b75b392be66f367",
+    "experiments/opw_knn.py": "5e4be53c55120369d5ea1878332a9f0cab9a3222ba7651b9ef1f3dec44c70690",
+    "experiments/sequence_data.py": "2d37caf1050f56acb95e0b0d0696333880a242b7cff67edab67f6513d9b68d48",
+    "experiments/sequence_metrics.py": "9a68a223404d0df1688251a6963b4ef05bf86a17bd4865b96f77699ae5b32a12",
+    "experiments/retrieval.py": "45e4eb6ff444f20f87a714b01d67b1e909b1d4cf7f12b658f325f685b6927225",
+    "experiments/runtime.py": "c80b52c453f2cb3cfc37126fb4b1570107766bd93605199fa82442d178383dd5"
+  },
+  "limitation": "Validation selection does not guarantee higher test ACC/MAP; fixed iterations may leave marginal error"
+}

@@ -1,0 +1,129 @@
+{
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "torch": "2.11.0+cpu",
+  "torch_cuda": null,
+  "device": "cpu",
+  "cuda_visible_devices": null,
+  "threads": 2,
+  "packages": {
+    "triton": null,
+    "geomloss": null,
+    "pykeops": null,
+    "ott-jax": "0.5.1",
+    "jax": "0.8.2",
+    "jaxlib": "0.8.2",
+    "scipy": "1.17.1",
+    "numba": "0.65.1"
+  },
+  "kernel_controls": {
+    "autotune": "0",
+    "vector_kernel": "1",
+    "gradient_kernel": "1"
+  },
+  "git_commit": "9fe0a27460b17e15a169292d36ccdf0fad42c827",
+  "git_dirty": true,
+  "triton": null,
+  "source_sha256": {
+    "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+    "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+    "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+    "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+    "experiments/paper_benchmarks.py": "17cda8fd01fc3b4193f9c743e724636ddeca2d9f9f5435728816d72470440675",
+    "experiments/ott_hessian.py": "80949079f02c55862915df3a9faad250f5d721be666de33e8ce5f8562166d89f",
+    "experiments/jax_hvp.py": "03cab85ea0bf0b7d6f5c3923cd4086362957e087e3276bb5989ca7deac7a3b40"
+  },
+  "signature": {
+    "settings": {
+      "lengths": [
+        512,
+        1024,
+        2048
+      ],
+      "dimensions": [
+        1,
+        13
+      ],
+      "length_ratio": 1.25,
+      "seeds": [
+        42,
+        43
+      ],
+      "repeats": 2,
+      "metrics": [
+        "dtw",
+        "soft-dtw",
+        "sinkhorn",
+        "opw"
+      ],
+      "flash_parameters": null,
+      "lambda1": 1,
+      "lambda2": 0.1,
+      "sigma": 1,
+      "iters": 200,
+      "journal_opw_iters": 20,
+      "sinkhorn_iters": 100,
+      "max_cpu_mib": 512,
+      "max_gpu_dense_mib": 256,
+      "max_ot_entries": 65536,
+      "cpu_timeout": 45.0,
+      "device": "cpu",
+      "threads": 2,
+      "memory_fraction": 0.45
+    },
+    "parameters": {
+      "lambda1": 1,
+      "lambda2": 0.1,
+      "sigma": 1,
+      "cost_scale": 1.0,
+      "n_iters": 200
+    },
+    "selection": null,
+    "sources": {
+      "flashopw/__init__.py": "203330d0bc8c9b498565966c743331e5805dd1092f1208d7fbdfdb4191001b4a",
+      "flashopw/solver.py": "63fcaa0a030ebd661be71f8da996c7194527030a1b0ce3a083741fab4d016edc",
+      "flashsinkhorn/__init__.py": "25b175ded2b7d2bc2d11bcdab53b7b590229799b708c05fd684b1d84dc713eb5",
+      "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+      "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+      "flashsinkhorn/solver.py": "dfccef56f8845cffd48a2cb5a9a190332899b9f748f1105e4b0ab15a5023cabb",
+      "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+      "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+      "experiments/opw_parameters.py": "788c4bda2a4c8964d626cf45f21218b9793849161d2a6d0265794f2116a6b660",
+      "experiments/opw_tune.py": "5c34dae2e3b9f616ff926792653fe43a39140509673df4f64401dabc2105cf6b",
+      "experiments/opw_scaling.py": "68a4c4ec548d3e3bcc4f4d663e3a3a07808c42533cbcd6f4f6b7882a6b5722e8",
+      "experiments/opw_knn.py": "5e4be53c55120369d5ea1878332a9f0cab9a3222ba7651b9ef1f3dec44c70690",
+      "experiments/sequence_data.py": "2d37caf1050f56acb95e0b0d0696333880a242b7cff67edab67f6513d9b68d48",
+      "experiments/sequence_metrics.py": "9a68a223404d0df1688251a6963b4ef05bf86a17bd4865b96f77699ae5b32a12",
+      "experiments/retrieval.py": "45e4eb6ff444f20f87a714b01d67b1e909b1d4cf7f12b658f325f685b6927225",
+      "experiments/runtime.py": "c80b52c453f2cb3cfc37126fb4b1570107766bd93605199fa82442d178383dd5"
+    },
+    "packages": {
+      "triton": null,
+      "geomloss": null,
+      "pykeops": null,
+      "ott-jax": "0.5.1",
+      "jax": "0.8.2",
+      "jaxlib": "0.8.2",
+      "scipy": "1.17.1",
+      "numba": "0.65.1"
+    },
+    "torch": "2.11.0+cpu",
+    "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+    "gpu": null,
+    "kernel_controls": {
+      "autotune": "0",
+      "vector_kernel": "1",
+      "gradient_kernel": "1"
+    }
+  },
+  "protocol": {
+    "data": "synthetic continuous sine trajectories, time warp 1.15, noise .03, features divided by sqrt(d)",
+    "purpose": "length/feature scaling; no classification ACC/MAP claim for synthetic data",
+    "timing": "one warmup excluded; wall time for full pair including cost/features/solve/scalar read; resident inputs",
+    "baselines": "journal CPU FP64; dense affine GPU FP32 is the same-cost/same-iteration control",
+    "iterations": "Flash and GPU affine use identical fixed iters; journal OPW20, other entropic100 by default",
+    "memory": "estimated dense working arrays preflight; CUDA extra allocator peak excludes resident inputs/context",
+    "limits": "resource skips and CPU timeouts are explicit rows; no fabricated timings or speedup",
+    "selection": "Frozen training parameters used only for Flash and its affine control; journal baselines retain CLI settings"
+  }
+}

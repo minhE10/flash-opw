@@ -43,12 +43,12 @@ def read_ts(path):
     return values, np.array(labels)
 
 
-def fetch_ucr(name, root):
+def fetch_ucr(name, root, splits=("TRAIN", "TEST")):
     if name not in UCR_DATASETS:
         raise ValueError("Use FacesUCR/FaceAll or --dataset-file for another journal dataset")
     folder = Path(root) / name
     folder.mkdir(parents=True, exist_ok=True)
-    paths = [folder / f"{name}_{split}.ts" for split in ("TRAIN", "TEST")]
+    paths = [folder / f"{name}_{split}.ts" for split in splits]
     url = f"https://zenodo.org/records/{UCR_RECORDS[name]}"
     for path in paths:
         if not path.is_file():
@@ -103,6 +103,39 @@ def load_sequences(name, root, dataset_file=None):
     provenance.update(original_train=len(train), original_test=len(test),
                       classes=len(np.unique(train_labels)), features=next(iter(dimensions)))
     return train, train_labels, test, test_labels, provenance
+
+
+def training_fingerprint(sequences, labels):
+    """Identity of training values, lengths and labels, independent of test data."""
+    digest = hashlib.sha256()
+    for value, label in zip(sequences, labels):
+        array = np.asarray(value, dtype="<f8", order="C")
+        digest.update(np.asarray(array.shape, dtype="<i8").tobytes())
+        digest.update(array.tobytes())
+        encoded = str(label).encode("utf-8")
+        digest.update(len(encoded).to_bytes(8, "little"))
+        digest.update(encoded)
+    return digest.hexdigest()
+
+
+def load_training(name, root, dataset_file=None):
+    """Tuning never downloads, opens or evaluates the official test split."""
+    if dataset_file is None:
+        paths, origin = fetch_ucr(name, root, splits=("TRAIN",))
+        sequences, labels = read_ts(paths[0])
+    else:
+        with np.load(dataset_file, allow_pickle=False) as saved:
+            sequences = _npz_sequences(saved, "train")
+            labels = saved["train_labels"].copy()
+        # Deliberately fingerprint only the training arrays, not test bytes.
+        origin = dict(dataset=name, source_file=str(Path(dataset_file).resolve()))
+    if (not sequences or labels.shape != (len(sequences),)
+            or len({x.shape[1] for x in sequences}) != 1
+            or any(min(x.shape) < 1 or not np.isfinite(x).all() for x in sequences)):
+        raise ValueError("Nonempty finite training sequences with matching labels/features required")
+    origin.update(training_sha256=training_fingerprint(sequences, labels),
+                  original_train=len(sequences), features=sequences[0].shape[1])
+    return sequences, labels, origin
 
 
 def balanced_subset(labels, limit, seed):

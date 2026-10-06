@@ -1,0 +1,36 @@
+{
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "torch": "2.11.0+cpu",
+  "torch_cuda": null,
+  "device": "cpu",
+  "cuda_visible_devices": null,
+  "threads": 2,
+  "packages": {
+    "triton": null,
+    "geomloss": null,
+    "pykeops": null,
+    "ott-jax": "0.5.1",
+    "jax": "0.8.2",
+    "jaxlib": "0.8.2",
+    "scipy": "1.17.1",
+    "numba": "0.65.1"
+  },
+  "kernel_controls": {
+    "autotune": "0",
+    "vector_kernel": "1",
+    "gradient_kernel": "1"
+  },
+  "git_commit": "9fe0a27460b17e15a169292d36ccdf0fad42c827",
+  "git_dirty": true,
+  "triton": null,
+  "source_sha256": {
+    "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+    "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+    "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+    "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+    "experiments/paper_benchmarks.py": "17cda8fd01fc3b4193f9c743e724636ddeca2d9f9f5435728816d72470440675",
+    "experiments/ott_hessian.py": "80949079f02c55862915df3a9faad250f5d721be666de33e8ce5f8562166d89f",
+    "experiments/jax_hvp.py": "03cab85ea0bf0b7d6f5c3923cd4086362957e087e3276bb5989ca7deac7a3b40"
+  }
+}

@@ -118,6 +118,13 @@ Thời gian trong CSV là wall time tính ma trận score sau warmup, không bao
 gồm tải dữ liệu, evaluation, diagnostics hoặc vẽ hình. Không dùng cột này
 để kết luận speedup giữa các thuật toán khi backend khác nhau.
 
+## Tuning và chuỗi dài
+
+Đã bổ sung chọn tham số trên validation tách riêng từ TRAIN, đóng băng tham số
+trước khi đánh giá TEST, và benchmark nhiều độ dài/dimension. Xem
+[quy trình tuning và scaling](opw_tuning_scaling.md). Các preset cố định bên dưới
+vẫn dùng làm đối chứng; tham số được chọn chỉ áp dụng cho metric mang tên `-tuned`.
+
 ## Chạy trên server
 
 Trong repo của bạn và môi trường `minh`, sau khi đã được cấp GPU 1:

@@ -1,5 +1,7 @@
 # FlashSinkhorn và FlashOPW
 
+Chọn hyperparameter trên train và benchmark chuỗi dài: [hướng dẫn chạy](docs/opw_tuning_scaling.md).
+
 FlashOPW áp dụng sửa cost trong **`main (2).pdf`**, với một tọa độ thời gian
 bổ sung; loss mặc định theo phương trình (19). Lõi tự reproduce FlashSinkhorn
 nằm riêng trong `flashsinkhorn`, API OPW nằm trong `flashopw`.

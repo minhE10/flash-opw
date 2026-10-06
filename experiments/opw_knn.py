@@ -8,7 +8,6 @@ FlashOPW's default score is the literal main PDF Eq.19, not journal <P,D>.
 import argparse
 import csv
 from datetime import datetime, timezone
-import hashlib
 import json
 import math
 import os
@@ -22,11 +21,13 @@ import torch
 from flashopw import opw_diagnostics, opw_distance, opw_flash, opw_online
 from .retrieval import evaluate_distances
 from .runtime import configure, metadata
-from .sequence_data import balanced_subset, load_sequences
+from .sequence_data import balanced_subset, load_sequences, training_fingerprint
 from .sequence_metrics import JOURNAL_METRICS, reference_distance
+from .opw_parameters import load_selection, source_hashes
 
 
-METRICS = ("flash-opw", "affine-opw-dense", *JOURNAL_METRICS, "opw-exact-relative")
+METRICS = ("flash-opw", "affine-opw-dense", *JOURNAL_METRICS, "opw-exact-relative",
+           "flash-opw-tuned", "affine-opw-dense-tuned")
 FIELDS = ("dataset", "metric", "status", "k", "ACC", "MAP", "ACC_percent", "MAP_percent",
           "queries", "gallery", "backend", "distance_seconds", "detail")
 DATASET_PARAMETERS = {"FacesUCR": (1.0, 0.1, 1.0), "FaceAll": (10.0, 0.1, 1.0)}
@@ -47,13 +48,7 @@ def _write_results(output, rows):
 
 
 def _source_hashes():
-    root = Path(__file__).resolve().parents[1]
-    names = ["flashopw/solver.py", "flashsinkhorn/solver.py", "flashsinkhorn/triton_kernels.py",
-             "flashsinkhorn/transport.py", "flashsinkhorn/kernel_tuning.py",
-             "experiments/opw_knn.py", "experiments/retrieval.py",
-             "experiments/sequence_metrics.py", "experiments/sequence_data.py"]
-    return {name: hashlib.sha256((root/name).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-            for name in names}
+    return source_hashes()
 
 
 def _parse_args():
@@ -61,7 +56,10 @@ def _parse_args():
     parser.add_argument("--datasets", nargs="+", default=["FacesUCR"])
     parser.add_argument("--dataset-file", type=Path, help="fixed or packed sequence NPZ; requires one dataset name")
     parser.add_argument("--data-root", type=Path, default=Path("data/opw"))
-    parser.add_argument("--metrics", nargs="+", choices=METRICS, default=list(METRICS[:-1]))
+    parser.add_argument("--metrics", nargs="+", choices=METRICS,
+                        default=["flash-opw", "affine-opw-dense", *JOURNAL_METRICS])
+    parser.add_argument("--flash-parameters", type=Path,
+                        help="frozen training selection; adds flash-opw-tuned, preserves baseline parameters")
     parser.add_argument("--ks", type=int, nargs="+", default=[1, 3, 5, 7, 15, 30])
     parser.add_argument("--max-train", type=int, default=64, help="0 means full official training split")
     parser.add_argument("--max-queries", type=int, default=32, help="0 means full official test split")
@@ -87,6 +85,12 @@ def _parse_args():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--resume", action="store_true", help="resume unchanged code, data, environment and settings")
     args = parser.parse_args()
+    if args.flash_parameters and "flash-opw-tuned" not in args.metrics:
+        args.metrics.append("flash-opw-tuned")
+    if args.flash_parameters and len(args.datasets) != 1:
+        parser.error("--flash-parameters requires exactly one dataset")
+    if any(metric.endswith("-tuned") for metric in args.metrics) and not args.flash_parameters:
+        parser.error("Tuned metrics require --flash-parameters")
     if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", name) for name in args.datasets):
         parser.error("dataset names must contain only letters, digits, underscores and hyphens")
     if args.dataset_file and len(args.datasets) != 1:
@@ -151,10 +155,15 @@ def main():
     if device.type == "cpu" and "flash-opw" in args.metrics:
         print("CPU mode: FlashOPW request uses the explicit tiled Torch oracle; results are labelled affine-opw-online, not GPU timings.", flush=True)
     parameters = {name: _parameters(name, args) for name in args.datasets}
+    selection = (load_selection(args.flash_parameters, dataset=args.datasets[0],
+                               score=args.opw_score, n_iters=args.iters)
+                 if args.flash_parameters else None)
+    if selection and selection["parameters"]["cost_scale"] != args.cost_scale:
+        raise ValueError("Use the frozen cost_scale for all metrics via --cost-scale")
     settings = {key:str(value) if isinstance(value, Path) else value for key,value in vars(args).items()
                 if key not in ("resume", "output")}
     environment = metadata(device)
-    signature = dict(settings=settings, parameters=parameters, sources=_source_hashes(),
+    signature = dict(settings=settings, parameters=parameters, selection=selection, sources=_source_hashes(),
                      packages=environment["packages"], torch=environment["torch"],
                      torch_cuda=environment["torch_cuda"], gpu=environment.get("gpu"),
                      python=environment["python"], kernel_controls=environment["kernel_controls"])
@@ -174,6 +183,8 @@ def main():
             baseline_backend="CPU FP64 dense references; FlashOPW CUDA FP32 or explicitly selected CPU oracle",
             timing="end-to-end distance matrix wall time after one warmup; excludes data loading, ranking and plots",
         ))
+        if selection:
+            environment["protocol"]["trial"] = "frozen training-only selection for flash-opw-tuned; default and journal metrics retain baseline parameters; not full journal reproduction"
         _atomic_json(output / "environment.json", environment)
     rows, failures = [], []
     all_evaluations, all_diagnostics, provenance = {}, {}, {}
@@ -185,6 +196,10 @@ def main():
     for dataset in args.datasets:
         try:
             train, train_labels, test, test_labels, origin = load_sequences(dataset, args.data_root, args.dataset_file)
+            if selection:
+                load_selection(args.flash_parameters, dataset=dataset,
+                               training_sha256=training_fingerprint(train, train_labels),
+                               score=args.opw_score, n_iters=args.iters)
             ti = balanced_subset(train_labels, args.max_train, args.seed)
             qi = balanced_subset(test_labels, args.max_queries, args.seed + 1)
             if max(args.ks) > len(ti):
@@ -203,7 +218,7 @@ def main():
         train, test = [train[i] for i in ti], [test[i] for i in qi]
         train_labels, test_labels = train_labels[ti], test_labels[qi]
         tensors = None
-        if "flash-opw" in args.metrics:
+        if any(metric.startswith("flash-opw") for metric in args.metrics):
             dtype = torch.float32 if device.type == "cuda" else torch.float64
             tensors = ([torch.as_tensor(x, dtype=dtype, device=device) for x in train],
                        [torch.as_tensor(x, dtype=dtype, device=device) for x in test])
@@ -213,7 +228,10 @@ def main():
                                 tlp_weight=args.tlp_weight, soft_dtw_gamma=args.soft_dtw_gamma,
                                 opw_score=args.opw_score)
         for metric in args.metrics:
-            name = "affine-opw-online" if metric == "flash-opw" and device.type == "cpu" else metric
+            is_flash = metric.startswith("flash-opw")
+            metric_parameters = selection["parameters"] if metric.endswith("-tuned") else parameters[dataset]
+            metric_kwargs = dict(reference_kwargs, **metric_parameters)
+            name = metric.replace("flash-opw", "affine-opw-online") if is_flash and device.type == "cpu" else metric
             key = dataset + "/" + name
             cache = output / f"{dataset}_{name}_distances.npz"
             distances = np.full((len(test), len(train)), np.nan)
@@ -228,17 +246,17 @@ def main():
                 diagnostic_path = output / f"{dataset}_{name}_diagnostics.json"
                 if diagnostic_path.is_file():
                     diagnostics = json.loads(diagnostic_path.read_text(encoding="utf-8"))
-            backend = "CUDA FP32 FlashSinkhorn" if metric == "flash-opw" and device.type == "cuda" else (
-                "CPU FP64 tiled Torch" if metric == "flash-opw" else "CPU FP64 reference")
+            backend = "CUDA FP32 FlashSinkhorn" if is_flash and device.type == "cuda" else (
+                "CPU FP64 tiled Torch" if is_flash else "CPU FP64 reference")
 
             def operation(i, j):
-                if metric != "flash-opw":
-                    kwargs = dict(reference_kwargs)
+                if not is_flash:
+                    kwargs = dict(metric_kwargs)
                     if metric in ("opw", "opw-kl", "opw-exact-relative"):
                         kwargs["n_iters"] = args.journal_opw_iters
-                    return reference_distance(metric, test[i], train[j], **kwargs)
+                    return reference_distance(metric.removesuffix("-tuned"), test[i], train[j], **kwargs)
                 solver = opw_flash if device.type == "cuda" else opw_online
-                result = solver(tensors[1][i], tensors[0][j], **parameters[dataset], precision=args.precision)
+                result = solver(tensors[1][i], tensors[0][j], **metric_parameters, precision=args.precision)
                 return float(result.loss if args.opw_score == "pdf-loss" else opw_distance(result))
 
             try:
@@ -258,11 +276,11 @@ def main():
                     np.savez_compressed(temporary, distances=distances, seconds=elapsed, completed_queries=i+1,
                                         train_labels=train_labels, test_labels=test_labels)
                     temporary.replace(cache)
-                    if i == 0 and metric == "flash-opw" and args.diagnostic_pairs:
+                    if i == 0 and is_flash and args.diagnostic_pairs:
                         solver = opw_flash if device.type == "cuda" else opw_online
                         for j in range(min(args.diagnostic_pairs, len(train))):
-                            result = solver(tensors[1][i], tensors[0][j], **parameters[dataset], precision=args.precision)
-                            expected = reference_distance("affine-opw-dense", test[i], train[j], **reference_kwargs)
+                            result = solver(tensors[1][i], tensors[0][j], **metric_parameters, precision=args.precision)
+                            expected = reference_distance("affine-opw-dense", test[i], train[j], **metric_kwargs)
                             diagnostics.append(dict(query=i, gallery=j, **opw_diagnostics(result),
                                                     score_abs_error=abs(distances[i,j]-expected)))
                         _atomic_json(output / f"{dataset}_{name}_diagnostics.json", diagnostics)
@@ -276,7 +294,7 @@ def main():
                                      ACC=acc, MAP=map_value, ACC_percent=100*acc, MAP_percent=100*map_value,
                                      queries=len(test), gallery=len(train), backend=backend,
                                      distance_seconds=elapsed,
-                                     detail="main Eq.19" if metric in ("flash-opw", "affine-opw-dense") and args.opw_score == "pdf-loss" else "journal-style ranking distance"))
+                                     detail="main Eq.19" if (is_flash or metric.startswith("affine-opw-dense")) and args.opw_score == "pdf-loss" else "journal-style ranking distance"))
                 print(f"  {name}: MAP={100*evaluation['MAP']:.3f}%, ACC@1={100*evaluation['ACC'].get('1', float('nan')):.3f}%", flush=True)
             except Exception as exc:
                 detail = f"{type(exc).__name__}: {exc}"
@@ -293,16 +311,16 @@ def main():
             _plot(output, rows)
     # Compare complete affine score matrices, not just a few correctness cases.
     parity = []
-    for dataset in args.datasets:
+    for dataset, suffix in ((dataset, suffix) for dataset in args.datasets for suffix in ("", "-tuned")):
         stream_name = "flash-opw" if device.type == "cuda" else "affine-opw-online"
-        stream_file = output / f"{dataset}_{stream_name}_distances.npz"
-        dense_file = output / f"{dataset}_affine-opw-dense_distances.npz"
+        stream_file = output / f"{dataset}_{stream_name}{suffix}_distances.npz"
+        dense_file = output / f"{dataset}_affine-opw-dense{suffix}_distances.npz"
         if stream_file.is_file() and dense_file.is_file():
             with np.load(stream_file) as a, np.load(dense_file) as b:
                 actual, expected = a["distances"], b["distances"]
                 if np.isfinite(actual).all() and np.isfinite(expected).all():
                     delta = actual - expected
-                    parity.append(dict(dataset=dataset, max_abs_error=float(np.abs(delta).max()),
+                    parity.append(dict(dataset=dataset, variant="tuned" if suffix else "default", max_abs_error=float(np.abs(delta).max()),
                                        relative_l2=float(np.linalg.norm(delta)/max(np.linalg.norm(expected), 1e-30)),
                                        nearest_neighbor_agreement=float(np.mean(np.argmin(actual, axis=1) == np.argmin(expected, axis=1)))))
     _atomic_json(output / "affine_parity.json", parity)
