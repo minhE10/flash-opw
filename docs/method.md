@@ -41,15 +41,15 @@ and averages each old/new update with factor 1/2; writes go to separate buffers.
 
 | Paper component | Implementation |
 | --- | --- |
-| Algorithm 1, alternating streamed LSE half-steps | `flashopw/triton_kernels.py::_update_kernel` |
-| Algorithm 3, one-launch symmetric update | `flashopw/triton_kernels.py::_symmetric_update_kernel` |
-| Algorithm 2, streamed `P V` | `flashopw/triton_kernels.py::_apply_kernel` |
+| Algorithm 1, alternating streamed LSE half-steps | `flashsinkhorn/triton_kernels.py::_update_kernel` |
+| Algorithm 3, one-launch symmetric update | `flashsinkhorn/triton_kernels.py::_symmetric_update_kernel` |
+| Algorithm 2, streamed `P V` | `flashsinkhorn/triton_kernels.py::_apply_kernel` |
 | Adjoint `P^T V` | Same kernel, swapping source/target and potentials |
-| Theorem 5 Hadamard transport | `flashopw/triton_kernels.py::_hadamard_apply_kernel` |
-| Point gradients at convergence | `flashopw/transport.py::point_gradients` |
-| Schur-CG HVP, equations (25)-(31) | `flashopw/differentiation.py::hessian_vector_product` |
-| Analytic autograd wrapper | `flashopw/differentiation.py::sinkhorn_cost` |
-| Optional KeOps HVP transport oracle | `flashopw/transport.py` (`backend="keops"`) |
+| Theorem 5 Hadamard transport | `flashsinkhorn/triton_kernels.py::_hadamard_apply_kernel` |
+| Point gradients at convergence | `flashsinkhorn/transport.py::point_gradients` |
+| Schur-CG HVP, equations (25)-(31) | `flashsinkhorn/differentiation.py::hessian_vector_product` |
+| Analytic autograd wrapper | `flashsinkhorn/differentiation.py::sinkhorn_cost` |
+| Optional KeOps HVP transport oracle | `flashsinkhorn/transport.py` (`backend="keops"`) |
 
 Each query tile remains resident while key tiles stream. The running row maximum
 and rescaled exponential sum prevent exponent overflow. We fold the marginal

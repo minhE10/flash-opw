@@ -1,15 +1,9 @@
-"""Balanced squared-Euclidean entropic OT. Triton is imported lazily."""
+"""Affine/Taylor OPW; ordinary entropic OT lives in ``flashsinkhorn``."""
 
-from .solver import SinkhornResult, sinkhorn_dense, sinkhorn_flash, sinkhorn_online
-from .transport import (apply_plan, apply_plan_hadamard, diagnostics,
-                        materialize_plan, point_gradients, source_gradient,
-                        target_gradient)
-from .differentiation import (HVPInfo, hessian_vector_product,
-                              regularized_ot_cost, sinkhorn_cost)
+from .solver import (OPWParameters, OPWResult, effective_cost, materialize_opw_plan,
+                     opw_dense, opw_diagnostics, opw_distance, opw_flash,
+                     opw_online, temporal_features)
 
-__all__ = [
-    "SinkhornResult", "sinkhorn_dense", "sinkhorn_flash", "sinkhorn_online",
-    "apply_plan", "apply_plan_hadamard", "diagnostics", "materialize_plan",
-    "point_gradients", "source_gradient", "target_gradient", "HVPInfo", "hessian_vector_product",
-    "regularized_ot_cost", "sinkhorn_cost",
-]
+__all__ = ["OPWParameters", "OPWResult", "effective_cost", "materialize_opw_plan",
+           "opw_dense", "opw_diagnostics", "opw_distance", "opw_flash",
+           "opw_online", "temporal_features"]

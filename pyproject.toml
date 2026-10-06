@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "flash-sinkhorn"
 version = "0.1.0"
-description = "FlashSinkhorn Triton solver and reproducible OT baseline benchmarks"
+description = "Separate FlashSinkhorn and affine FlashOPW solvers with reproducible OT and k-NN experiments"
 requires-python = ">=3.10"
 dependencies = ["torch>=2.5", "numpy>=1.24"]
 
@@ -13,6 +13,7 @@ dependencies = ["torch>=2.5", "numpy>=1.24"]
 dev = ["pytest>=8"]
 plots = ["matplotlib>=3.7"]
 phase2 = ["torchvision>=0.20"]
+opw = ["scipy==1.17.1", "numba==0.65.1"]
 baselines = ["geomloss==0.2.6", "pykeops==2.3", "ott-jax==0.5.1", "jax[cuda12-local]==0.8.2", "lineax==0.0.8", "optax==0.2.6"]
 baseline-cpu = ["ott-jax==0.5.1", "jax==0.8.2", "lineax==0.0.8", "optax==0.2.6", "jaxtyping>=0.2"]
 

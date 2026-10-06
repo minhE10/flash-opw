@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from experiments.datasets import make_dataset
-from flashopw import (sinkhorn_dense, sinkhorn_flash, apply_plan,
+from flashsinkhorn import (sinkhorn_dense, sinkhorn_flash, apply_plan,
                      apply_plan_hadamard, materialize_plan, diagnostics,
                      point_gradients, hessian_vector_product, sinkhorn_cost)
 
@@ -203,6 +203,6 @@ def test_tuned_kernels_match_dense_and_fixed_step_hvp(monkeypatch):
     torch.testing.assert_close(hessian_vector_product(result, direction, **kwargs),
                                hessian_vector_product(dense, direction, **kwargs),
                                rtol=5e-3, atol=3e-5)
-    from flashopw.kernel_tuning import tuning_records
+    from flashsinkhorn.kernel_tuning import tuning_records
     records = tuning_records()
     assert records and all(r["selected"]["shared_bytes"] <= r["shared_budget_bytes"] for r in records)

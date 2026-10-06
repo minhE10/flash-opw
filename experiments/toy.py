@@ -12,7 +12,7 @@ import time
 
 import torch
 
-from flashopw import (sinkhorn_dense, sinkhorn_flash, sinkhorn_online,
+from flashsinkhorn import (sinkhorn_dense, sinkhorn_flash, sinkhorn_online,
                      apply_plan, diagnostics, materialize_plan)
 from .datasets import DATASETS, make_dataset
 from .runtime import configure, metadata

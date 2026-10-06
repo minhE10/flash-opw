@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from experiments.datasets import make_dataset
-from flashopw import (sinkhorn_dense, sinkhorn_flash, sinkhorn_online,
+from flashsinkhorn import (sinkhorn_dense, sinkhorn_flash, sinkhorn_online,
                      materialize_plan, apply_plan, apply_plan_hadamard,
                      diagnostics, point_gradients, hessian_vector_product,
                      regularized_ot_cost, sinkhorn_cost, source_gradient,

@@ -18,7 +18,7 @@ import statistics
 
 import torch
 
-from flashopw import diagnostics, sinkhorn_dense, sinkhorn_flash
+from flashsinkhorn import diagnostics, sinkhorn_dense, sinkhorn_flash
 from .runtime import configure, metadata
 from .toy import measure
 

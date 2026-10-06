@@ -5,7 +5,7 @@ from types import ModuleType, SimpleNamespace
 
 import torch
 
-from flashopw import kernel_tuning
+from flashsinkhorn import kernel_tuning
 
 
 def test_autotuner_does_not_launch_overbudget_candidates(monkeypatch):

@@ -4,7 +4,7 @@ import argparse
 import json
 import torch
 
-from flashopw import sinkhorn_dense, sinkhorn_flash, apply_plan, diagnostics, materialize_plan
+from flashsinkhorn import sinkhorn_dense, sinkhorn_flash, apply_plan, diagnostics, materialize_plan
 from .datasets import make_dataset
 from .runtime import configure, metadata
 

@@ -33,8 +33,8 @@ def main():
     from triton.compiler.errors import CompilationError
     from triton.runtime.errors import OutOfResources
     from triton.backends.compiler import GPUTarget
-    kernels = load("tuning_kernels", root / "flashopw/triton_kernels.py")
-    tuning = load("offline_tuning", root / "flashopw/kernel_tuning.py")
+    kernels = load("tuning_kernels", root / "flashsinkhorn/triton_kernels.py")
+    tuning = load("offline_tuning", root / "flashsinkhorn/kernel_tuning.py")
     records = []
     for d in args.dims:
         for precision in args.precisions:

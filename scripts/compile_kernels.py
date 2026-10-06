@@ -25,7 +25,7 @@ def main():
     from triton.backends.compiler import GPUTarget
 
     # Load just the kernels; avoid importing the torch-based package __init__.
-    spec = importlib.util.spec_from_file_location("offline_kernels", root / "flashopw/triton_kernels.py")
+    spec = importlib.util.spec_from_file_location("offline_kernels", root / "flashsinkhorn/triton_kernels.py")
     kernels = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = kernels
     spec.loader.exec_module(kernels)

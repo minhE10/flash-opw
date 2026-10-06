@@ -8,7 +8,7 @@ from pathlib import Path
 from experiments.datasets import make_dataset
 from experiments.jax_hvp import (hvp_from_shifted_potentials,
                                  transport_from_shifted_potentials)
-from flashopw import hessian_vector_product, sinkhorn_dense
+from flashsinkhorn import hessian_vector_product, sinkhorn_dense
 
 
 @pytest.mark.parametrize("n,m,d,distribution,epsilon", [

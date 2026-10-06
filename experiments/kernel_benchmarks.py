@@ -15,9 +15,9 @@ from pathlib import Path
 
 import torch
 
-from flashopw import apply_plan, diagnostics, hessian_vector_product, sinkhorn_cost, sinkhorn_flash
-from flashopw.transport import source_gradient
-from flashopw.kernel_tuning import tuning_records
+from flashsinkhorn import apply_plan, diagnostics, hessian_vector_product, sinkhorn_cost, sinkhorn_flash
+from flashsinkhorn.transport import source_gradient
+from flashsinkhorn.kernel_tuning import tuning_records
 from .paper_benchmarks import _stats, _time_torch, _write_results
 from .runtime import configure, metadata
 

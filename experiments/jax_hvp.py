@@ -92,7 +92,7 @@ def hvp_from_shifted_potentials(x, y, u, v, direction, *, epsilon, damping,
     """Return an HVP; ``u,v`` are the shifted log-plan potentials.
 
     The plan is ``exp(2*x@y.T/epsilon + u[:,None] + v[None,:])``. This matches
-    the full squared-Euclidean cost convention used by ``flashopw``.
+    the full squared-Euclidean cost convention used by ``flashsinkhorn``.
     """
     import jax.numpy as jnp
 

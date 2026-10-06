@@ -19,7 +19,7 @@ import time
 
 import torch
 
-from flashopw import sinkhorn_flash
+from flashsinkhorn import sinkhorn_flash
 from .phase2_real import load_embeddings, stratified_indices
 from .runtime import configure, metadata
 

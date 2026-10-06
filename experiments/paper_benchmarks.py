@@ -24,7 +24,7 @@ import time
 
 import torch
 
-from flashopw import diagnostics, hessian_vector_product, sinkhorn_cost, sinkhorn_flash
+from flashsinkhorn import diagnostics, hessian_vector_product, sinkhorn_cost, sinkhorn_flash
 from .runtime import configure, metadata
 
 
@@ -716,7 +716,7 @@ def main():
                     print(f"{axis_value:6d} {method:12s} FAILED: {type(exc).__name__}: {exc}", flush=True)
                 finally:
                     _write_results(output, rows)
-                    from flashopw.kernel_tuning import tuning_records
+                    from flashsinkhorn.kernel_tuning import tuning_records
                     (output / "autotuning.json").write_text(
                         json.dumps(tuning_records(), indent=2), encoding="utf-8")
                     (output / "diagnostics.json").write_text(

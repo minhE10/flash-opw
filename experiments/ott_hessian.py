@@ -27,7 +27,7 @@ class CGResult(NamedTuple):
 
 
 def fixed_step_cg(matvec, rhs, max_steps):
-    """Same fixed-budget, device-side breakdown guards as flashopw CG."""
+    """Same fixed-budget, device-side breakdown guards as flashsinkhorn CG."""
     import jax.numpy as jnp
     from jax import lax
 
@@ -99,7 +99,7 @@ def load_hessian(path, *, cg_rtol=0.0, cg_atol=0.0):
 
 
 def state_from_shifted(x, y, u, v, *, epsilon, batch_size=256):
-    """OTT potentials include marginal logs, unlike flashopw result.f/g."""
+    """OTT potentials include marginal logs, unlike flashsinkhorn result.f/g."""
     import jax.numpy as jnp
     from ott.geometry import costs, pointcloud
 

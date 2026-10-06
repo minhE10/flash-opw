@@ -34,7 +34,7 @@ def lse(values, axis):
 
 def main():
     root = Path(__file__).resolve().parents[1]
-    spec = importlib.util.spec_from_file_location("interpreted_kernels", root / "flashopw/triton_kernels.py")
+    spec = importlib.util.spec_from_file_location("interpreted_kernels", root / "flashsinkhorn/triton_kernels.py")
     kernels = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = kernels
     spec.loader.exec_module(kernels)

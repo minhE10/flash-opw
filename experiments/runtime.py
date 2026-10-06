@@ -43,7 +43,7 @@ def metadata(device):
         "vector_kernel": os.environ.get("FLASHOPW_VECTOR_KERNEL", "1"),
         "gradient_kernel": os.environ.get("FLASHOPW_GRADIENT_KERNEL", "1"),
     }
-    for package in ("triton", "geomloss", "pykeops", "ott-jax", "jax", "jaxlib"):
+    for package in ("triton", "geomloss", "pykeops", "ott-jax", "jax", "jaxlib", "scipy", "numba"):
         try:
             info["packages"][package] = importlib.metadata.version(package)
         except importlib.metadata.PackageNotFoundError:
@@ -58,8 +58,8 @@ def metadata(device):
     info["triton"] = info["packages"]["triton"]
     root = Path(__file__).resolve().parents[1]
     info["source_sha256"] = {}
-    for relative in ("flashopw/triton_kernels.py", "flashopw/kernel_tuning.py",
-                     "flashopw/transport.py", "flashopw/differentiation.py",
+    for relative in ("flashsinkhorn/triton_kernels.py", "flashsinkhorn/kernel_tuning.py",
+                     "flashsinkhorn/transport.py", "flashsinkhorn/differentiation.py",
                      "experiments/paper_benchmarks.py", "experiments/ott_hessian.py",
                      "experiments/jax_hvp.py"):
         path = root / relative

@@ -1,4 +1,32 @@
-# FlashSinkhorn in Triton + toy experiments
+# FlashSinkhorn và FlashOPW
+
+FlashOPW áp dụng sửa cost trong **`main (2).pdf`**, với một tọa độ thời gian
+bổ sung; loss mặc định theo phương trình (19). Lõi tự reproduce FlashSinkhorn
+nằm riêng trong `flashsinkhorn`, API OPW nằm trong `flashopw`.
+Xem [công thức, phạm vi và trial k-NN MAP/ACC](docs/flash_opw.md).
+Kết quả kiểm tra local và giới hạn hiện tại ở [báo cáo validation](docs/validation_opw.md).
+
+Trong môi trường `minh` trên server, sau khi đã được cấp GPU 1:
+
+```bash
+git pull --ff-only origin main
+python -m pip install -e '.[dev,plots,opw]'
+bash scripts/validate_flash_opw.sh 1
+```
+
+Khi validation qua, chạy pilot so sánh FlashOPW, affine dense và 10 metric
+của journal trên cùng subset FacesUCR:
+
+```bash
+bash scripts/run_opw_knn.sh 1 --datasets FacesUCR \
+  --max-train 32 --max-queries 16 \
+  --output outputs/opw_knn_facesucr_pilot_20261006
+```
+
+Kết quả nằm trong `knn_results.csv`, `affine_parity.json` và `diagnostics.json`.
+Đây là trial tham số cố định; chưa phải tái hiện toàn bộ bảng journal.
+
+## FlashSinkhorn
 
 Implementation độc lập của thuật toán FlashSinkhorn trong
 [paper của Ye et al.](https://arxiv.org/abs/2602.03067), với Sinkhorn log-domain
@@ -162,8 +190,10 @@ bash scripts/run_baselines.sh 1 \
   --warmups 2 --repeats 3
 ```
 
-The public import name is now `flashsinkhorn`; the existing `flashopw` import
-remains as a compatibility alias.
+The FlashSinkhorn engine lives in `flashsinkhorn`. The separate `flashopw`
+package is reserved for the order-preserving cost and OPW solver; it is no
+longer an alias for ordinary Sinkhorn. Existing `FLASHOPW_*` kernel tuning
+environment variables are retained for the validated Sinkhorn benchmark scripts.
 
 ## Full eight-panel paper benchmark
 
