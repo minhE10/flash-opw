@@ -274,30 +274,3 @@ mechanism and run stability. The profiler warning alone does not establish
 missing data; traces have not been inspected locally. The eight-panel
 cross-method benchmark remains the next experiment, using the documented
 unchanged mathematical protocol and a fresh output directory.
-
-## Author comparison preparation (2026-10-06, local CPU)
-
-Added an import path for the untouched official author source at
-`75d48cc42d2efe8d4f654d91152ccf6f857c993f`, used by the existing eight-panel
-data generation and timers. The local read-only checkout was verified at
-that revision with no tracked changes; provenance covers 57 Python files.
-KeOps, Tensorized and JAX paths remain the current harness implementations.
-HVP setup retains the shared current coupling; only the timed Flash HVP/CG
-switches to the author implementation.
-
-Local checks in `.venv-baselines`:
-
-```text
-python -m pytest -q
-54 passed, 134 skipped in 28.44s
-```
-
-The new CPU checks cover OTT potential conversion against the independent
-dense plan at three cost scales, ratio/status joins, mismatched data-seed
-rejection and duplicate-case rejection. Ten new author CUDA checks were
-skipped because the local Torch build has no CUDA; this is not author GPU
-validation. Python compileall, CLI help, `git diff --check`, and WSL Bash
-syntax checks for setup/run scripts passed. The WSL Triton environment has
-no Torch installed, so the actual author package was not runtime-imported
-or benchmarked locally. Follow the author server commands in
-`paper_reproduction.md`; no author RTX 5080 timings are claimed here.

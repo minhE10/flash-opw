@@ -449,8 +449,6 @@ def _draw_panel(axis, experiment, rows, show_title=True):
         if not points:
             continue
         label, color, marker = STYLE[method]
-        if method.startswith("flash") and "author source" in points[0]["detail"]:
-            label += " (author)"
         if experiment.startswith("hvp") and method == "jax":
             label = ("JAX (OTT-Hessian, fixed CG)" if "OTT-Hessian" in points[0]["detail"]
                      else "JAX (matrix-free)")
@@ -502,10 +500,6 @@ def _plot(output, rows, experiments):
         else:
             axis.axis("off")
     handles = [plt.Line2D([], [], color=STYLE[m][1], marker=STYLE[m][2], label=STYLE[m][0]) for m in METHODS]
-    if any("author source" in row["detail"] for row in rows):
-        for handle, method in zip(handles, METHODS):
-            if method.startswith("flash"):
-                handle.set_label(STYLE[method][0] + " (author)")
     fig.legend(handles=handles, loc="upper center", ncol=5, frameon=False)
     fig.suptitle("FlashSinkhorn: IO-Aware Entropic Optimal Transport", fontweight="bold", y=1.03)
     fig.savefig(output / "00_overview.png", dpi=200, bbox_inches="tight")
@@ -537,10 +531,6 @@ def _parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--experiments", nargs="+", choices=tuple(PANELS), default=list(PANELS))
     parser.add_argument("--methods", nargs="+", choices=METHODS, default=list(METHODS))
-    parser.add_argument("--flash-implementation", choices=("local", "author"), default="local",
-                        help="use untouched pinned author kernels/API for Flash methods; other baselines stay unchanged")
-    parser.add_argument("--author-path", type=Path,
-                        default=Path("outputs/third_party/flash-sinkhorn-author"))
     parser.add_argument("--n-sizes", type=int, nargs="+", default=[5000, 10000, 20000, 30000, 40000, 50000])
     parser.add_argument("--d-sizes", type=int, nargs="+", default=[4, 8, 16, 32, 64, 128, 256, 512, 1024])
     parser.add_argument("--hvp-n-sizes", type=int, nargs="+",
@@ -590,8 +580,6 @@ def _parse_args():
         parser.error("this FlashSinkhorn implementation supports d <= 1024")
     if min(args.warmups, args.forward_repeats, args.backward_repeats, args.hvp_repeats) < 1:
         parser.error("warmups and repetitions must be positive")
-    if args.flash_implementation == "author" and args.precision == "tf32x3":
-        parser.error("the pinned author API supports ieee/tf32, not tf32x3")
     return args
 
 
@@ -602,16 +590,10 @@ def main():
     os.environ.setdefault("XLA_PYTHON_CLIENT_ALLOCATOR", "platform")
     _preload_cuda_libraries()
     device = configure("cuda", threads=2, memory_fraction=args.memory_fraction)
-    author_provenance = None
-    if args.flash_implementation == "author":
-        from .author_reference import load_author
-        _, author_provenance = load_author(args.author_path)
-    prefix = "author_paper" if author_provenance else "paper"
-    output = args.output or Path("outputs") / datetime.now(timezone.utc).strftime(prefix + "_%Y%m%dT%H%M%S.%fZ")
+    output = args.output or Path("outputs") / datetime.now(timezone.utc).strftime("paper_%Y%m%dT%H%M%S.%fZ")
     output.mkdir(parents=True, exist_ok=False)
     environment = metadata(device)
     environment["args"] = {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()}
-    environment["author_source"] = author_provenance
     environment["protocol"] = {
         "data": "independent uniform [0,1]^d point clouds; uniform marginals",
         "cost": "full squared Euclidean",
@@ -633,17 +615,6 @@ def main():
         "tensorized_forward": "dense squared-distance matrix precomputed and cached outside timing, matching the official benchmark",
         "tiles": "bounded GPU autotuning in warmup" if args.autotune else "fixed RTX-safe upper bounds",
     }
-    if author_provenance:
-        environment["protocol"]["hvp"] = "strict FP32; shared coupling; original author CG with configured iteration cap"
-        environment["protocol"]["tiles"] = "author native configuration/autotuning; local tile controls apply to shared HVP setup"
-        environment["protocol"]["author_flash"] = {
-            "forward_backward": "author SamplesLoss; fixed n_iters parameter; original solver initialization retained; no extrapolation",
-            "hvp": "author hvp_x_sqeuclid_from_potentials and unmodified CG; shared local IEEE coupling solved outside timing",
-            "damping": "author tau2=absolute Schur damping/epsilon",
-            "cg": "max_cg_iter from args; rtol=atol=0; author's exact-zero/breakdown exits retained",
-            "tiles": "author autotune/configuration, not the local bounded candidate set",
-            "baselines": "KeOps, Tensorized and JAX are the existing harness paths, including guarded JAX CG",
-        }
     (output / "environment.json").write_text(json.dumps(environment, indent=2), encoding="utf-8")
     rows = []
     validation = []
@@ -694,11 +665,7 @@ def main():
                     torch.backends.cuda.matmul.allow_tf32 = not strict_fp32
                     torch.set_float32_matmul_precision("highest" if strict_fp32 else "high")
                     if method.startswith("flash"):
-                        if args.flash_implementation == "author":
-                            from .author_reference import author_operation
-                            operation, detail = author_operation(method, experiment, x, y, args)
-                        else:
-                            operation, detail = _flash_operation(method, experiment, x, y, args)
+                        operation, detail = _flash_operation(method, experiment, x, y, args)
                         timing_kind = "torch"
                     elif method in ("keops", "tensorized"):
                         operation, detail = _geomloss_operation(method, experiment, x, y, args)
