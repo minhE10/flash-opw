@@ -140,6 +140,82 @@ JAX implementation from OTT-Hessian runs. Tensorized still precomputes forward
 cost outside timing. Compare paper ratios with their correct Flash denominator,
 and never mix protocols or the short/full runs of the original log.
 
+## Author code on the current experiments
+
+The author comparison changes only the Flash implementation. It imports the
+official `ot-triton-lab/flash-sinkhorn` checkout at
+`75d48cc42d2efe8d4f654d91152ccf6f857c993f` directly from `torch-ext`, without
+installing its similarly named distribution over this repository. This is a
+pinned released source revision, not a verified identification of the exact
+commit that produced every paper table. Tracked source modifications and a
+different revision are rejected; module origin and all Python source hashes
+are recorded in `environment.json`.
+
+On the allocated GPU 1 in the existing `minh` environment:
+
+```bash
+git pull --ff-only origin main
+conda activate minh
+bash scripts/setup_author_reference.sh
+bash scripts/setup_ott_hessian.sh
+CUDA_VISIBLE_DEVICES=1 \
+  FLASHOPW_AUTHOR_PATH=outputs/third_party/flash-sinkhorn-author \
+  python -m pytest -q --require-gpu tests/test_author_reference.py
+```
+
+The author GPU checks exercise symmetric/alternating forward and source
+gradient at d=3,65,1024 against an independent direct-distance FP64 oracle,
+and raw author HVP at 12/50 CG iterations against a dense shared coupling.
+If a check fails, retain its output and investigate before the long run;
+the checks do not substitute local kernels or patch the author's CG.
+
+After those checks pass, run the same eight panels and controls as the current
+full experiment (uniform dataset, same per-case seed, epsilon 0.1, source-only
+backward, 10/50/30/20 warmup/forward/backward/HVP repetitions):
+
+```bash
+bash scripts/run_author_benchmarks.sh 1 \
+  --autotune --block-m 64 --block-n 128 --diagnostics \
+  --output outputs/author_paper_20261006
+python -m experiments.compare_author_runs \
+  outputs/paper_20261005T090633.880402Z outputs/author_paper_20261006
+```
+
+Use a fresh `--output` directory if that name already exists. If your original
+full run used different overrides, copy those exact overrides to the author
+run. The comparison checks shared settings, available shared source hashes,
+GPU and package versions before joining cases; it rejects mismatched runs.
+`comparison_with_local.csv` contains both means/statuses and `local_over_author`:
+a value above 1 means the author is faster for ms or uses less memory for MB.
+Missing, failed, nonfinite and estimated-memory-skipped measurements have no
+ratio. Use `diagnostics.json` for numerical differences, not just timings.
+
+Forward/backward use the original author's `SamplesLoss`, fixed `n_iters=10`,
+no epsilon scaling/debiasing/normalization/extrapolation and full squared cost.
+Its symmetric solver retains a full initialization step before the 10 damped
+updates; this differs from the local solver's 10 updates from zero. Its source
+gradient uses target marginal `a` and conditional row means, which can differ
+from the local gradient using actual masses after a finite solve. These are
+original source behaviors, recorded rather than silently changed for parity.
+`--diagnostics` reports forward/gradient relative L2 versus local outside timing.
+Author tiles and autotune candidates remain those in the original code;
+`--block-m/--block-n` control local shared HVP setup, not author solver tiles.
+
+HVPs use exactly the current benchmark's cached local IEEE coupling (100 solve
+iterations outside timing), converted to the author's OTT potentials. The
+timed operation calls original author transport/HVP and original Python CG,
+with no preconditioner, IEEE matmul, `max_cg_iter=50`, `rtol=atol=0` and
+`tau2=1e-5/epsilon` to retain absolute Schur damping `1e-5`. Its original
+exact-zero/breakdown exits and CPU synchronizations remain. Reported author
+CG fields and HVP relative L2 versus local are saved outside timing.
+
+KeOps, Tensorized and JAX retain the current harness implementations, including
+the guarded OTT-Hessian JAX CG adapter. This run isolates **author Flash versus
+local Flash on the current protocol**; it is not a run of every author's native
+benchmark script and baseline unchanged. Native scripts generate different
+data by default. Original source failures on RTX 5080 are recorded as failures,
+without falling back to a local implementation.
+
 ## Local developer checks
 
 ```bash
