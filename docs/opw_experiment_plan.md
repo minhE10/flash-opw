@@ -66,6 +66,8 @@ selection và settings phải giữ nguyên. CPU/GPU luôn dùng output khác nh
 
 ## 2. Ablation prior, score, Taylor
 
+Runner: `experiments.opw_group2`. Xem [protocol và lệnh nhóm2](opw_group2.md).
+
 * So mu1.05 và mu50, giữ epsilon, score và số vòng/độ hội tụ.
 * Đánh giá Eq.19, <P,D>, <P,D+muF> từ cùng một coupling.
 * So affine/Taylor với inverse exact, giữ relative prior, lambda1, epsilon,
@@ -144,7 +146,10 @@ CSV GPU đã xác nhận hội tụ pilot: tất cả224 cặp default đạt ta
 tuned tại1000; tau=1e-4 đạt toàn bộ tại500(default),2000(tuned).
 Còn chờ summary GPU để xác nhận matrix score parity và tổng trạng thái run.
 Xem [báo cáo nhóm1](../reports/opw_group1_20261006/review.md) và artifact đã lưu.
-Nhóm2–6 là kế hoạch.
+Nhóm2 đã hoàn tất CPU pilot: cả sáu cost đạt tau=1e-3 trên224 cặp mỗi cost;
+54 hàng MAP/ACC và contrasts đã lưu trong
+[báo cáo nhóm2](../reports/opw_group2_20261006/review.md). GPU chạy server bằng
+`scripts/run_opw_group2.sh`; chưa nhận artifact nhóm2 CUDA. Nhóm3–6 là kế hoạch.
 Runner hiện có: correctness tests, tuning Flash, k-NN cố định, GPU scaling
 ở số vòng cố định. Tuning các baseline, statistical analysis và throughput
 batch còn cần bổ sung khi thực hiện các nhóm tương ứng.

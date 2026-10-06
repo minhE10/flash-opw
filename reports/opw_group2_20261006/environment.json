@@ -1,0 +1,341 @@
+{
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "torch": "2.11.0+cpu",
+  "torch_cuda": null,
+  "device": "cpu",
+  "cuda_visible_devices": null,
+  "threads": 2,
+  "packages": {
+    "triton": null,
+    "geomloss": null,
+    "pykeops": null,
+    "ott-jax": "0.5.1",
+    "jax": "0.8.2",
+    "jaxlib": "0.8.2",
+    "scipy": "1.17.1",
+    "numba": "0.65.1"
+  },
+  "kernel_controls": {
+    "autotune": "0",
+    "vector_kernel": "1",
+    "gradient_kernel": "1"
+  },
+  "git_commit": "e4f751ed4f8ae03cd24db8d670f357f7c89e1841",
+  "git_dirty": true,
+  "triton": null,
+  "source_sha256": {
+    "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+    "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+    "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+    "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+    "experiments/paper_benchmarks.py": "17cda8fd01fc3b4193f9c743e724636ddeca2d9f9f5435728816d72470440675",
+    "experiments/ott_hessian.py": "80949079f02c55862915df3a9faad250f5d721be666de33e8ce5f8562166d89f",
+    "experiments/jax_hvp.py": "03cab85ea0bf0b7d6f5c3923cd4086362957e087e3276bb5989ca7deac7a3b40"
+  },
+  "signature": {
+    "settings": {
+      "dataset": "FacesUCR",
+      "dataset_file": null,
+      "data_root": "data\\opw",
+      "flash_parameters": "reports\\opw_tuning_20261006\\selected_parameters.json",
+      "gallery": 16,
+      "queries": 14,
+      "seed": 20261006,
+      "fixed_iters": [
+        100,
+        200
+      ],
+      "tau": 0.001,
+      "max_iters": 4000,
+      "check_every": 50,
+      "batch": 16,
+      "memory_mib": 128,
+      "max_dense_entries": 4194304,
+      "ks": [
+        1,
+        3,
+        5,
+        7,
+        15
+      ],
+      "device": "cpu",
+      "threads": 2,
+      "memory_fraction": 0.45
+    },
+    "selection": {
+      "schema": "flashopw-training-selection-v1",
+      "protocol": "stratified holdout within official training split only",
+      "dataset": "FacesUCR",
+      "training_sha256": "0a41a8b41d240c060ef1d5516dda64e343e5965634f1c021ab7eae36b6eafc1d",
+      "parameters": {
+        "lambda1": 1.0,
+        "lambda2": 0.1,
+        "sigma": 0.031943828249996996,
+        "cost_scale": 1,
+        "n_iters": 200
+      },
+      "score": "pdf-loss",
+      "n_iters": 200,
+      "selection_k": 1,
+      "objective": "ACC",
+      "selected_candidate": 1,
+      "validation": {
+        "candidate": 1,
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 0.031943828249996996,
+          "cost_scale": 1,
+          "n_iters": 200
+        },
+        "mu": 50.0,
+        "ACC": 0.8571428571428571,
+        "MAP": 0.742782060192498,
+        "seconds": 25.500726199999917,
+        "diagnostics": {
+          "max_marginal_l1": 0.012851309781577915,
+          "pairs": 392
+        }
+      },
+      "default_validation": {
+        "candidate": 0,
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 1,
+          "cost_scale": 1,
+          "n_iters": 200
+        },
+        "mu": 1.05,
+        "ACC": 0.5714285714285714,
+        "MAP": 0.6081487028009585,
+        "seconds": 24.61294420000013,
+        "diagnostics": {
+          "max_marginal_l1": 0.0005308378427746887,
+          "pairs": 392
+        }
+      },
+      "gallery_indices": [
+        13,
+        17,
+        25,
+        27,
+        31,
+        33,
+        36,
+        49,
+        59,
+        61,
+        66,
+        67,
+        73,
+        78,
+        80,
+        87,
+        97,
+        102,
+        111,
+        116,
+        123,
+        125,
+        139,
+        154,
+        157,
+        170,
+        178,
+        185
+      ],
+      "validation_indices": [
+        2,
+        7,
+        24,
+        65,
+        71,
+        84,
+        86,
+        101,
+        106,
+        119,
+        126,
+        129,
+        148,
+        149
+      ],
+      "seed": 20261006,
+      "backend": "CPU FP64 batched dense oracle",
+      "search_source_sha256": {
+        "flashopw/__init__.py": "203330d0bc8c9b498565966c743331e5805dd1092f1208d7fbdfdb4191001b4a",
+        "flashopw/solver.py": "63fcaa0a030ebd661be71f8da996c7194527030a1b0ce3a083741fab4d016edc",
+        "flashsinkhorn/__init__.py": "25b175ded2b7d2bc2d11bcdab53b7b590229799b708c05fd684b1d84dc713eb5",
+        "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+        "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+        "flashsinkhorn/solver.py": "dfccef56f8845cffd48a2cb5a9a190332899b9f748f1105e4b0ab15a5023cabb",
+        "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+        "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+        "experiments/opw_parameters.py": "788c4bda2a4c8964d626cf45f21218b9793849161d2a6d0265794f2116a6b660",
+        "experiments/opw_tune.py": "5c34dae2e3b9f616ff926792653fe43a39140509673df4f64401dabc2105cf6b",
+        "experiments/opw_scaling.py": "a56ec96b111ebb48246f456f3db61b15237bb3f4145a664b9b75b392be66f367",
+        "experiments/opw_knn.py": "5e4be53c55120369d5ea1878332a9f0cab9a3222ba7651b9ef1f3dec44c70690",
+        "experiments/sequence_data.py": "2d37caf1050f56acb95e0b0d0696333880a242b7cff67edab67f6513d9b68d48",
+        "experiments/sequence_metrics.py": "9a68a223404d0df1688251a6963b4ef05bf86a17bd4865b96f77699ae5b32a12",
+        "experiments/retrieval.py": "45e4eb6ff444f20f87a714b01d67b1e909b1d4cf7f12b658f325f685b6927225",
+        "experiments/runtime.py": "c80b52c453f2cb3cfc37126fb4b1570107766bd93605199fa82442d178383dd5"
+      },
+      "limitation": "Validation selection does not guarantee higher test ACC/MAP; fixed iterations may leave marginal error"
+    },
+    "origin": {
+      "dataset": "FacesUCR",
+      "source_url": "https://zenodo.org/records/11191065",
+      "files": {
+        "FacesUCR_TRAIN.ts": "dda6897df22db05960b00a5147f53346774848bf86ccb4d918fde201eab7ad0f"
+      },
+      "preprocessing": "archive values unchanged; no resampling or feature normalization",
+      "training_sha256": "0a41a8b41d240c060ef1d5516dda64e343e5965634f1c021ab7eae36b6eafc1d",
+      "original_train": 200,
+      "features": 1
+    },
+    "models": {
+      "affine_default": {
+        "kind": "affine",
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 1,
+          "cost_scale": 1
+        }
+      },
+      "exact_relative_default": {
+        "kind": "exact_relative",
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 1,
+          "cost_scale": 1
+        }
+      },
+      "exact_journal_default": {
+        "kind": "exact_journal",
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 1,
+          "cost_scale": 1
+        }
+      },
+      "affine_tuned": {
+        "kind": "affine",
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 0.031943828249996996,
+          "cost_scale": 1
+        }
+      },
+      "exact_relative_tuned": {
+        "kind": "exact_relative",
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 0.031943828249996996,
+          "cost_scale": 1
+        }
+      },
+      "exact_journal_tuned": {
+        "kind": "exact_journal",
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 0.031943828249996996,
+          "cost_scale": 1
+        }
+      }
+    },
+    "gallery_indices": [
+      17,
+      25,
+      31,
+      36,
+      59,
+      66,
+      73,
+      80,
+      87,
+      97,
+      102,
+      123,
+      125,
+      139,
+      154,
+      157
+    ],
+    "query_indices": [
+      2,
+      7,
+      24,
+      65,
+      71,
+      84,
+      86,
+      101,
+      106,
+      119,
+      126,
+      129,
+      148,
+      149
+    ],
+    "sources": {
+      "flashopw/__init__.py": "203330d0bc8c9b498565966c743331e5805dd1092f1208d7fbdfdb4191001b4a",
+      "flashopw/solver.py": "63fcaa0a030ebd661be71f8da996c7194527030a1b0ce3a083741fab4d016edc",
+      "flashsinkhorn/__init__.py": "25b175ded2b7d2bc2d11bcdab53b7b590229799b708c05fd684b1d84dc713eb5",
+      "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+      "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+      "flashsinkhorn/solver.py": "dfccef56f8845cffd48a2cb5a9a190332899b9f748f1105e4b0ab15a5023cabb",
+      "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+      "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+      "experiments/opw_parameters.py": "3a9730fa6cd5dd7c0fd5de99e1992a748fcac5076e65ddb72e74456d91b71786",
+      "experiments/opw_tune.py": "5c34dae2e3b9f616ff926792653fe43a39140509673df4f64401dabc2105cf6b",
+      "experiments/opw_scaling.py": "7a50356f4511eee6ecbda88382ad14966122ee548553b70570ff994f668b1822",
+      "experiments/opw_knn.py": "055de47899df57e14f32ffb4cffceca1b70be7a68382b4fa3be4ea9ed9bfb5f1",
+      "experiments/sequence_data.py": "2d37caf1050f56acb95e0b0d0696333880a242b7cff67edab67f6513d9b68d48",
+      "experiments/sequence_metrics.py": "9a68a223404d0df1688251a6963b4ef05bf86a17bd4865b96f77699ae5b32a12",
+      "experiments/sequence_metrics_torch.py": "9aa6296cbb22220eb00cffe17d41d7f825486e30939964537f26adc69157e928",
+      "experiments/retrieval.py": "45e4eb6ff444f20f87a714b01d67b1e909b1d4cf7f12b658f325f685b6927225",
+      "experiments/runtime.py": "c80b52c453f2cb3cfc37126fb4b1570107766bd93605199fa82442d178383dd5",
+      "experiments/opw_group1.py": "208b3f78d81a1b3ed732c078d6f6e5b762929caae563cdd4e0ec2f451aae8142",
+      "experiments/opw_group2.py": "f27ee20370307ca988714557902f4f63d63bdfaf89c7e4974545e45a951f20d6"
+    },
+    "input_sha256": "8830916a7bfe02eed15b97f2684db22b6e092a29918413148851f95a678ca227",
+    "torch": "2.11.0+cpu",
+    "packages": {
+      "triton": null,
+      "geomloss": null,
+      "pykeops": null,
+      "ott-jax": "0.5.1",
+      "jax": "0.8.2",
+      "jaxlib": "0.8.2",
+      "scipy": "1.17.1",
+      "numba": "0.65.1"
+    },
+    "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+    "gpu": null,
+    "kernel_controls": {
+      "autotune": "0",
+      "vector_kernel": "1",
+      "gradient_kernel": "1"
+    }
+  },
+  "protocol": {
+    "scope": "Exploratory TRAIN holdout reused from group1, not independent TEST quality or model selection",
+    "primary": "main PDF affine model, dual_score is literal Eq19; no solver/default/selection mutation",
+    "exact": "exact_relative restores 1/(1+F) only; exact_journal additionally uses F/(1/N^2+1/M^2) in Gaussian prior",
+    "scores": "dual_score uses Eq19-style f/g expression for exact controls; spatial=<P,D>; affine=<P,D+mu*F> for ALL couplings",
+    "constants": "All solvers center q0 out of cost and restore it only in dual score; uniform a,b; f then g",
+    "stopping": "first observed check_every checkpoint satisfying BOTH L1 marginals; cap retained and labelled, no failed-pair exclusion",
+    "backends": "CPU explicit FP64 reference; CUDA adds Flash IEEE FP32 affine and dense Torch FP32 exact controls",
+    "timing": "not a runtime benchmark; dense diagnostic coupling recovery included",
+    "tlp": "matched TLp is the SAME affine coupling, <P,D+mu*F>; preset identity only if mu=50 and epsilon=.1",
+    "score_reuse": "all three scores from ONE coupling per model/pair/mode, no score-specific re-solve"
+  }
+}
