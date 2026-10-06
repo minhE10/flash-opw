@@ -140,7 +140,9 @@ parameters hoặc evaluation protocol còn khác.
 Trạng thái 06/10/2026: nhóm1 đã hoàn tất phần CPU (52/52 parity checks đạt;
 224 cặp mỗi cấu hình, sweep đến 2000 vòng). Đã nhận console log Flash CUDA:
 40/40 parity case đạt; 12 matrix có NN agreement 100% với FP64 cùng số vòng.
-Còn chờ artifact GPU để xác nhận matrix score parity và hội tụ đầy đủ.
+CSV GPU đã xác nhận hội tụ pilot: tất cả224 cặp default đạt tau=1e-3 tại200,
+tuned tại1000; tau=1e-4 đạt toàn bộ tại500(default),2000(tuned).
+Còn chờ summary GPU để xác nhận matrix score parity và tổng trạng thái run.
 Xem [báo cáo nhóm1](../reports/opw_group1_20261006/review.md) và artifact đã lưu.
 Nhóm2–6 là kế hoạch.
 Runner hiện có: correctness tests, tuning Flash, k-NN cố định, GPU scaling

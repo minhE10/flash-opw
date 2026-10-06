@@ -2,8 +2,10 @@
 
 Ngày chạy: 06/10/2026. **Phần CPU đã hoàn tất; đã nhận console log Flash CUDA
 do người dùng chạy trên server.** GPU log: 40/40 parity case đạt, 12 matrix có
-NN agreement 100% so với FP64 cùng số vòng; còn chờ artifact để xác nhận
-tổng trạng thái và marginal GPU. Xem [đánh giá GPU log](gpu_log_review.md).
+NN agreement 100% so với FP64 cùng số vòng. CSV server xác nhận default đạt
+tau=1e-3 trên toàn bộ cặp ở200 vòng, tuned ở1000; cả hai đạt tau=1e-4 tại2000.
+Còn chờ summary GPU để xác nhận tổng trạng thái/matrix parity.
+Xem [đánh giá GPU log và hội tụ](gpu_log_review.md).
 Kế hoạch đầy đủ: [experiment 1–6](../../docs/opw_experiment_plan.md).
 
 ## Protocol đã thực hiện
@@ -118,6 +120,7 @@ CPU thread. Nếu allocation hiện hành khác GPU1, giữ allocation đã đư
 Nếu gián đoạn, chạy lại cùng lệnh với `--resume`; không đổi code, dữ liệu,
 selection hoặc môi trường. Dùng output mới khi thay settings/phiên bản. Gửi
 folder `outputs/opw_group1_gpu_v1` để kiểm tra parity, convergence và rankings.
-Console log đã xác nhận parity case đạt; cần summary và convergence của GPU
-để đóng phần numerical parity toàn matrix và hội tụ. Artifact đang lưu trong
-report này là CPU run; không thay thế bằng số suy đoán từ GPU console.
+Console đã xác nhận parity case đạt; CSV server đã xác nhận marginal/NN drift
+GPU. Cần summary GPU để đóng phần numerical parity toàn matrix và trạng thái
+tổng. Artifact JSON/NPZ của report này là CPU run; CSV server được lưu riêng
+trong `gpu_convergence_user_supplied.csv`.
