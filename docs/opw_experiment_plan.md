@@ -79,6 +79,11 @@ Runner: `experiments.opw_group2`. Xem [protocol và lệnh nhóm2](opw_group2.md
 
 ## 3. Tuning công bằng
 
+Runner: `experiments.opw_group3`; xem [protocol, ngân sách và lệnh nhóm3](opw_group3.md).
+Có đủ11 metric; candidate counts bằng nhau cho7 metric có regularization;
+DTW/LDTW/NDTW/OT giữ1 candidate. Artifact mới freeze tất cả metric và common
+marginal stopping policy; không ghi đè file tuning Flash-only cũ.
+
 * Cùng ba training-validation split/seed, không dùng TEST để chọn.
 * Flash: mu/epsilon; TLp: temporal weight/epsilon; OPW và OPW-KL: regularization
   tương ứng; Sinkhorn/TCOT/Soft-DTW: entropy/smoothing. DTW chuẩn không có
@@ -152,7 +157,9 @@ ranking CPU/GPU trùng toàn bộ trong54 phép so model/mode/score. Xem
 [báo cáo CPU nhóm2](../reports/opw_group2_20261006/review.md) và
 [báo cáo GPU nhóm2](../reports/opw_group2_gpu_20261006/review.md).
 Artifact GPU đã được audit từ ZIP ở commit a1785d9; báo cáo gọn và bản local
-được giữ sau khi bỏ ZIP khỏi phiên bản hiện tại. Nhóm3–6 là kế hoạch.
-Runner hiện có: correctness tests, tuning Flash, k-NN cố định, GPU scaling
-ở số vòng cố định. Tuning các baseline, statistical analysis và throughput
-batch còn cần bổ sung khi thực hiện các nhóm tương ứng.
+được giữ sau khi bỏ ZIP khỏi phiên bản hiện tại. Nhóm3 đã có runner tuning
+tất cả metric trên ba split TRAIN; phần CUDA chạy trên server và cần gửi lại
+artifact để audit. Nhóm4–6 vẫn là kế hoạch.
+Runner hiện có: correctness tests, tuning Flash riêng và tuning tất cả metric,
+k-NN cố định, GPU scaling ở số vòng cố định. Đánh giá TEST với selection mới,
+statistical analysis và throughput batch còn cần bổ sung ở các nhóm tương ứng.

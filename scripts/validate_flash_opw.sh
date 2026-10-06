@@ -21,4 +21,4 @@ export NUMBA_NUM_THREADS=2
 export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-$PWD/.triton-cache}"
 python -m pytest -q --require-gpu tests/test_opw.py tests/test_retrieval.py \
   tests/test_sequence_metrics.py tests/test_sequence_data.py tests/test_opw_experiments.py \
-  tests/test_opw_group1.py tests/test_opw_group2.py
+  tests/test_opw_group1.py tests/test_opw_group2.py tests/test_opw_group3.py
