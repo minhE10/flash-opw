@@ -5,6 +5,12 @@ với relative time `i/N,j/M`, epsilon=lambda2, score Eq.19. FlashSinkhorn và
 FlashOPW tiếp tục là hai package riêng. Các thay đổi score hoặc inverse exact
 chỉ là đối chứng có tên riêng, không thay định nghĩa FlashOPW chính.
 
+Cập nhật 07/10: phép so chính theo yêu cầu là **FlashOPW của main so với OPW
+gốc của journal**, giữ inverse exact `1/(1+R)`, Gaussian prior `R/h` và score
+`<P,D>` của journal. Không dùng dense affine thay cho OPW gốc và không đổi
+sigma journal để ép cùng prior. Runner, công thức, kiểm tra GPU đã gửi và lệnh
+server được lưu ở [opw_main_vs_journal.md](opw_main_vs_journal.md).
+
 Log FacesUCR 64 gallery × 64 query hiện có: mặc định ACC@1=70.312%,
 MAP=55.490%; tuned ACC@1=85.938%, MAP=72.872%; TLp ACC@1=89.062%, MAP=74.911%.
 Đây là kết quả ở số vòng cố định, chưa xác nhận hội tụ hoặc lợi thế cùng GPU.
