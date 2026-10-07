@@ -91,6 +91,36 @@ environment. Chunk đã lưu được kiểm tra SHA256/indices/labels/checkpoin
 khi dùng lại; chunk dang dở được tính lại. Chỉ chunk cuối chưa lưu mới có thể mất.
 Không sửa source/pull commit mới khi đang chạy nếu muốn resume cùng signature.
 
+### Bản vá kiểm tra checkpoint sát ngưỡng
+
+Log server ghi nhận query177/gallery92 dừng ở450 vòng, nhưng residual diagnostic
+FP32 là `0.001000002492219209`, cao hơn tau1e-3 khoảng `2.49e-9`. Engine kiểm
+tra dừng bằng `P@1`; OPW diagnostic tính hàng bằng `P@[1,Y]`. Hai reduction
+có thể cho kết quả ở hai phía ngưỡng. Validator ban đầu đã nhầm điều kiện
+`residual>tau` trước cap với checkpoint hỏng và dừng toàn bộ experiment.
+
+Bản vá tách hai việc: hash/identity/shape/số vòng vẫn phải hợp lệ; residual
+được giữ nguyên và dùng để đánh giá quality. Mọi residual>tau vẫn nằm trong
+`unconverged_pairs`, kể cả cặp sát ngưỡng đã early-stop. Không làm tròn residual,
+không nới tolerance, không đổi solver, tham số hoặc stopping schedule.
+
+Để tiếp tục run của bản gốc commit `5eed549`:
+
+```bash
+git pull --ff-only origin main
+bash scripts/run_opw_group4.sh 1 \
+  --output outputs/opw_group4_facesucr_gpu_20261007 --resume
+```
+
+Runner chỉ cho phép migration từ **đúng hash bản runner gốc** sang **đúng
+hash bản vá này**. Toàn bộ source tính toán khác, dữ liệu, config và environment
+phải khớp. Nó lưu `environment.before_checkpoint_validator_fix.json` trước
+khi cập nhật signature và ghi provenance migration; các NPZ/job đã lưu được
+giữ nguyên. Chạy tiếp vẫn kiểm tra hash từng chunk. Log `[cached]` là đọc lại
+chunk, `[computed]` là tính mới; progress in lại từ4 không có nghĩa solve lại.
+Audit cũng kiểm tra provenance của migration. Đây là ngoại lệ riêng cho bản
+vá validator, không phải tùy chọn bỏ kiểm tra source khi resume.
+
 Nếu ngân sách chỉ đủ các đối chứng chính, khai báo trước workload nhỏ hơn
 bằng `--profiles selected --metrics flash-opw opw tlp` với output **khác**.
 Lệnh đó vẫn dùng toàn bộ TEST nhưng chỉ có ba metric, không phải bảng đầy đủ11.

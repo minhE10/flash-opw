@@ -15,6 +15,7 @@ import numpy as np
 
 from .opw_group3 import METRICS, UNTUNABLE, _csv, distance_matrix, load_frozen
 from .opw_parameters import atomic_json, source_hashes
+from .opw_group4_resume import signature_migration
 from .paired_statistics import holm_adjust, paired_query_statistics
 from .retrieval import evaluate_distances
 from .runtime import configure, metadata
@@ -65,10 +66,16 @@ def load_chunk(path, jobpath, *, identity, gallery_labels, query_labels, policy,
         raise ValueError("Invalid cached residuals/iterations")
     if entropic:
         cap,every = policy["max_iters"],policy["check_every"]
-        if ((iterations<1).any() or (iterations>cap).any()
-                or np.any((iterations != cap)&(iterations % every != 0))
-                or np.any((residuals>policy["tau"])&(iterations != cap))):
-            raise ValueError("Invalid cached stopping checkpoints")
+        bad = (iterations<1)|(iterations>cap)|((iterations != cap)&(iterations % every != 0))
+        if bad.any():
+            q,g = np.argwhere(bad)[0]
+            raise ValueError(f"Invalid cached stopping checkpoints: {path.name}; "
+                f"query={identity['start']+q}, gallery={g}, iteration={iterations[q,g]}; "
+                f"expected a checkpoint every {every} iterations or cap={cap}")
+        # The solver stops using P@1; OPW diagnostics use P@[1,Y]. Their
+        # FP32 reductions can straddle tau. Feasibility is a quality status,
+        # not evidence that a finite, structurally valid checkpoint is corrupt.
+        # Preserve the measured residual: result_rows still counts every >tau.
     elif np.any(residuals != 0) or np.any(iterations != 0):
         raise ValueError("Non-entropic methods must use zero diagnostic placeholders")
     return arrays,job
@@ -174,7 +181,7 @@ def main():
     configs = configurations(selection,args.profiles,args.metrics)
     # Validate frozen solver code and TRAIN identity before opening TEST.
     sources = source_hashes()
-    for name in ("opw_group3.py","opw_group4.py","paired_statistics.py"):
+    for name in ("opw_group3.py","opw_group4.py","paired_statistics.py","opw_group4_resume.py"):
         path = Path(__file__).with_name(name)
         sources[f"experiments/{name}"] = hashlib.sha256(path.read_bytes().replace(b"\r\n",b"\n")).hexdigest()
     if any(sources.get(k) != v for k,v in selection["sources"].items()):
@@ -208,8 +215,17 @@ def main():
         (args.output/name).mkdir(exist_ok=True)
     if args.resume:
         old = json.loads((args.output/"environment.json").read_text(encoding="utf-8"))
-        if old["signature"] != signature:
-            raise ValueError("Resume refused: data/code/selection/settings/environment changed")
+        migration = signature_migration(old["signature"],signature)
+        if migration:
+            backup = args.output/"environment.before_checkpoint_validator_fix.json"
+            if backup.exists() and json.loads(backup.read_text(encoding="utf-8")) != old:
+                raise ValueError("Existing checkpoint migration backup mismatch")
+            if not backup.exists():
+                atomic_json(backup,old)
+            old["signature"] = signature
+            old["checkpoint_validator_migration"] = dict(migration,reader_git_commit=environment.get("git_commit"))
+            atomic_json(args.output/"environment.json",old)
+            print("Applied checkpoint-reader fix; preserving all cached numerical results.",flush=True)
     else:
         atomic_json(args.output/"environment.json",dict(environment,signature=signature,
             protocol="official TRAIN gallery / full official TEST queries; frozen TRAIN parameters",
@@ -233,7 +249,8 @@ def main():
                 identity = dict(metric=metric,parameters=p,start=start,stop=stop)
                 path = args.output/"chunks"/f"{key}__q{start:06d}.npz"
                 jobpath = path.with_suffix(".json")
-                if not (args.resume and path.exists() and jobpath.exists()):
+                cached = args.resume and path.exists() and jobpath.exists()
+                if not cached:
                     began = time.perf_counter()
                     arrays = distance_matrix(metric,test[start:stop],train,p,policy,device=device,
                                              batch=args.batch,memory_mib=args.memory_mib)
@@ -246,7 +263,8 @@ def main():
                 completed += 1
                 atomic_json(args.output/"run_state.json",dict(status="running",metric=metric,queries_done=stop,
                     completed_chunks=completed,total_chunks=total))
-                print(f"{metric}: {stop}/{len(test)} queries; chunks {completed}/{total}",flush=True)
+                print(f"{metric}: {stop}/{len(test)} queries; chunks {completed}/{total} "
+                      f"[{'cached' if cached else 'computed'}]",flush=True)
             matrixfile = args.output/"matrices"/f"{key}.npz"
             temporary = matrixfile.with_suffix(".tmp.npz")
             np.savez_compressed(temporary,**matrices,gallery_indices=np.arange(len(train)),query_indices=np.arange(len(test)),

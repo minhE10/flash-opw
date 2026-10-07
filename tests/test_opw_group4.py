@@ -1,3 +1,5 @@
+import copy
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -8,6 +10,7 @@ import torch
 
 from experiments import opw_group4 as group4
 from experiments.opw_group4_audit import audit
+from experiments.opw_group4_resume import LEGACY_RUNNER_SHA256, PATCHED_RUNNER_SHA256, RUNNER, MIGRATION, signature_migration
 from experiments.opw_parameters import atomic_json, source_hashes
 from experiments.paired_statistics import holm_adjust, paired_query_statistics
 from experiments.sequence_data import training_fingerprint
@@ -98,9 +101,23 @@ def test_full_test_all_metrics_native_oracles_and_identical_profiles_are_reused(
     def no_solve(*args,**kwargs):
         raise AssertionError("cached chunks should be reused")
     monkeypatch.setattr(group4,"distance_matrix",no_solve)
+    # Simulate the known v1 run metadata. Every saved numerical array stays
+    # intact; the narrow migration must accept exactly this reader-only fix.
+    old_environment = copy.deepcopy(env)
+    old_environment["signature"]["sources"][RUNNER] = LEGACY_RUNNER_SHA256
+    del old_environment["signature"]["sources"][MIGRATION]
+    atomic_json(output/"environment.json",old_environment)
     monkeypatch.setattr(sys,"argv",argv+["--resume"])
     group4.main()
     assert json.loads((output/"paired_statistics.json").read_text()) == paired
+    assert json.loads((output/"environment.before_checkpoint_validator_fix.json").read_text()) == old_environment
+    migrated = json.loads((output/"environment.json").read_text())
+    assert migrated["signature"] == env["signature"]
+    assert migrated["checkpoint_validator_migration"]["old_runner_sha256"] == LEGACY_RUNNER_SHA256
+    assert audit(output,dataset_file=data)["status"] == "passed"
+    # Repeated resumes do not overwrite the original provenance backup.
+    group4.main()
+    assert json.loads((output/"environment.before_checkpoint_validator_fix.json").read_text()) == old_environment
     bad_stats = json.loads((output/"paired_statistics.json").read_text())
     bad_stats[0]["delta_MAP_pp"] += 1
     atomic_json(output/"paired_statistics.json",bad_stats)
@@ -162,6 +179,53 @@ def test_training_mismatch_is_refused_before_test_load(tmp_path,monkeypatch):
         "--device","cpu","--output",str(tmp_path/"run")])
     with pytest.raises(ValueError,match="TRAIN fingerprint"):
         group4.main()
+
+
+def test_fp32_stop_diagnostic_boundary_is_quality_status_not_corrupt_cache(tmp_path):
+    policy = dict(tau=.001,max_iters=4000,check_every=50)
+    identity = dict(metric="flash-opw",parameters=dict(lambda1=1.,lambda2=.1,sigma=1.,cost_scale=1.),start=177,stop=178)
+    # Exact reported failure: diagnostic reduction exceeds tau by 2.49e-9.
+    residual = .001000002492219209
+    values = dict(distances=np.array([[.2]]),residuals=np.array([[residual]]),iterations=np.array([[450.]]))
+    path,jobpath = tmp_path/"chunk.npz",tmp_path/"chunk.json"
+    group4.save_chunk(path,jobpath,values,identity,np.array(["a"]),np.array(["a"]),0.)
+    loaded,_ = group4.load_chunk(path,jobpath,identity=identity,gallery_labels=np.array(["a"]),
+                               query_labels=np.array(["a"]),policy=policy,entropic=True)
+    assert loaded["residuals"][0,0] == residual  # No rounding or relaxed tau.
+    config = dict(metric="flash-opw",parameters=identity["parameters"],aliases=[dict(profile="selected",candidate=1)])
+    ev = dict(ACC={"1":1.},MAP=1.,queries_without_relevant_gallery=0)
+    row = group4.result_rows(config,ev,loaded,policy,device_type="cuda",seconds=0,ks=[1])[0]
+    assert row["unconverged_pairs"] == 1
+    assert row["max_marginal_l1"] == residual
+
+
+@pytest.mark.parametrize("iteration", [0,451,4050,450.5])
+def test_invalid_iteration_metadata_still_refuses_checkpoint(tmp_path,iteration):
+    identity = dict(metric="flash-opw",parameters={},start=0,stop=1)
+    values = dict(distances=np.array([[.2]]),residuals=np.array([[.0005]]),iterations=np.array([[iteration]]))
+    path,jobpath = tmp_path/"chunk.npz",tmp_path/"chunk.json"
+    group4.save_chunk(path,jobpath,values,identity,np.array(["a"]),np.array(["a"]),0.)
+    with pytest.raises(ValueError,match="Invalid cached"):
+        group4.load_chunk(path,jobpath,identity=identity,gallery_labels=np.array(["a"]),query_labels=np.array(["a"]),
+                         policy=dict(tau=.001,max_iters=4000,check_every=50),entropic=True)
+
+
+def test_reader_signature_migration_cannot_bypass_numeric_or_settings_changes():
+    actual = hashlib.sha256(Path(group4.__file__).read_bytes().replace(b"\r\n",b"\n")).hexdigest()
+    assert actual == PATCHED_RUNNER_SHA256
+    current = dict(sources={RUNNER:actual,MIGRATION:"helper", "flashsinkhorn/solver.py":"frozen"},
+                   policy=dict(tau=.001),settings=dict(query_chunk=4),origin=dict(test_sha256="fixed"))
+    prior = copy.deepcopy(current)
+    prior["sources"][RUNNER] = LEGACY_RUNNER_SHA256
+    del prior["sources"][MIGRATION]
+    assert signature_migration(prior,current)["new_runner_sha256"] == actual
+    assert signature_migration(current,current) is None
+    for field,key,value in (("sources","flashsinkhorn/solver.py","changed"),("sources",RUNNER,"unknown-reader"),
+                            ("settings","query_chunk",8),("policy","tau",.01),("origin","test_sha256","changed")):
+        changed = copy.deepcopy(current)
+        changed[field][key] = value
+        with pytest.raises(ValueError,match="Resume refused"):
+            signature_migration(prior,changed)
 
 
 @pytest.mark.gpu

@@ -11,6 +11,7 @@ import numpy as np
 from .opw_group3 import load_frozen
 from .opw_group4 import CPU_METRICS, analyze, configurations, load_chunk, report, result_rows, sha256
 from .opw_parameters import atomic_json, source_hashes
+from .opw_group4_resume import signature_migration
 from .retrieval import evaluate_distances
 from .sequence_data import load_sequences, training_fingerprint
 
@@ -34,13 +35,18 @@ def audit(output, *, data_root=Path("data/opw"), dataset_file=None):
     if configs != signature["configs"] or selection["solver_policy"] != signature["policy"]:
         raise ValueError("Frozen configurations/policy mismatch")
     sources = source_hashes()
-    for name in ("opw_group3.py","opw_group4.py","paired_statistics.py"):
+    for name in ("opw_group3.py","opw_group4.py","paired_statistics.py","opw_group4_resume.py"):
         path = Path(__file__).with_name(name)
         sources[f"experiments/{name}"] = hashlib.sha256(path.read_bytes().replace(b"\r\n",b"\n")).hexdigest()
     if sources != signature["sources"] or sources != summary["sources"]:
         raise ValueError("Audit numerical sources mismatch")
     if any(sources.get(k) != v for k,v in selection["sources"].items()):
         raise ValueError("Frozen numerical sources mismatch")
+    if "checkpoint_validator_migration" in environment:
+        before = json.loads((output/"environment.before_checkpoint_validator_fix.json").read_text(encoding="utf-8"))
+        expected = signature_migration(before["signature"],signature)
+        if expected is None or any(environment["checkpoint_validator_migration"].get(k) != v for k,v in expected.items()):
+            raise ValueError("Checkpoint validator migration provenance mismatch")
     train,tl,test,ql,origin = load_sequences(selection["dataset"],data_root,dataset_file)
     origin = signature["origin"]
     if (training_fingerprint(train,tl) != selection["training_sha256"]
