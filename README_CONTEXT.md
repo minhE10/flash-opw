@@ -1,5 +1,14 @@
 # Context bàn giao FlashOPW / FlashSinkhorn
 
+**Chỉ đạo mới ngày 08/10/2026:** bắt đầu lại lõi FlashSinkhorn theo repo chính
+thức của tác giả. Reference chỉ đọc ở `external/flash-sinkhorn-upstream/`;
+implementation nguyên bản ở `flash_sinkhorn_author/`, ghim commit
+`bb2bf5aeaf2eacbbf291b767e14d97a6702dc9e1` (version 0.4.1).
+Xem `docs/flash_sinkhorn_author.md` và `flash_sinkhorn_author/UPSTREAM.json`.
+Đã kiểm tra source từng byte; CUDA validation và chuyển FlashOPW sang lõi này
+chưa được thực hiện. Thông tin tiếp tục dùng lõi tự reproduce bên dưới mô tả
+giai đoạn trước chỉ đạo mới; kết quả cũ vẫn thuộc implementation cũ.
+
 Cập nhật ngày **07/10/2026**, múi giờ Asia/Jakarta. File này ghi lại trạng thái tại thời điểm bàn giao; tiến độ server có thể đã tăng sau đó.
 
 Để tiếp tục ở chat mới, hãy đọc file này và `docs/opw_experiment_plan.md`, sau đó kiểm tra code và Git hiện tại trước khi thay đổi.

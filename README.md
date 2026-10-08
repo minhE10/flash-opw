@@ -1,5 +1,10 @@
 # FlashSinkhorn và FlashOPW
 
+Từ 08/10/2026, nhánh implementation theo repo tác giả được đặt riêng tại
+[`flash_sinkhorn_author/`](flash_sinkhorn_author/), với bản reference chỉ đọc
+và commit cố định. Xem [hướng dẫn source và validation](docs/flash_sinkhorn_author.md).
+Các runner FlashOPW bên dưới hiện vẫn dùng lõi tự triển khai `flashsinkhorn`.
+
 Chọn hyperparameter trên train và benchmark chuỗi dài: [hướng dẫn chạy](docs/opw_tuning_scaling.md).
 Kế hoạch experiment 1–6: [file theo dõi](docs/opw_experiment_plan.md).
 Nhóm2 — prior, score, Taylor: [protocol và lệnh chạy](docs/opw_group2.md).

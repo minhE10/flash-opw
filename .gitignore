@@ -17,3 +17,6 @@ checkpoints/
 .env
 *.pt
 *.pth
+
+# Pinned author checkout; recreate with scripts/author_flashsinkhorn_sources.py.
+external/flash-sinkhorn-upstream/

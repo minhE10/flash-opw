@@ -1,0 +1,797 @@
+{
+  "repository": "https://github.com/ot-triton-lab/flash-sinkhorn.git",
+  "commit": "bb2bf5aeaf2eacbbf291b767e14d97a6702dc9e1",
+  "version": "0.4.1",
+  "imported_on": "2026-10-08",
+  "reference_directory": "external/flash-sinkhorn-upstream",
+  "implementation_directory": "flash_sinkhorn_author",
+  "policy": "All upstream tracked files copied byte-for-byte; no kernel, solver, API or tolerance modifications.",
+  "files": {
+    ".gitattributes": {
+      "mode": "100644",
+      "git_blob": "56a4be038fa9721afe6d3ee45765182b0bb592b5",
+      "sha256": "e84574558e3ba03b156d2582ad01589bf20255ea6d446fcb7694edf53a1a1ef2",
+      "bytes": 334
+    },
+    ".github/workflows/build-kernel.yml": {
+      "mode": "100644",
+      "git_blob": "fb84d4eba394b72c80bbafb21269f8d31d35648b",
+      "sha256": "8bcd934906d8ccf039b7b3f6c5238f8b89b48fe0593159cd9f677d28d3dde18e",
+      "bytes": 1288
+    },
+    ".gitignore": {
+      "mode": "100644",
+      "git_blob": "fdcf4c30b7e2d6da9fa7082d8f87ab70a19765d6",
+      "sha256": "b6263dbb34cb845bef7f5ce69b5e033ba133f64c0b391ad53fe455f3bd502a5d",
+      "bytes": 302
+    },
+    "API.md": {
+      "mode": "100644",
+      "git_blob": "97b231af89b349516c3dd9ce455ebd71271d72c3",
+      "sha256": "699f433f05ad4fcf82c8cffeccebc13c6fd78b6df33dce6e5d36c99c7c47eda8",
+      "bytes": 33754
+    },
+    "CARD.md": {
+      "mode": "100644",
+      "git_blob": "aec0aaa219b34c6f39ea7c7a591f60e104c9daa0",
+      "sha256": "ba94e7faf3ed7012819ba836ec5c8034123b41e951ecbe06a7033d07a16c2f74",
+      "bytes": 1104
+    },
+    "CHANGELOG.md": {
+      "mode": "100644",
+      "git_blob": "e918fbe236910936c3c76d733d1fc2049a92f4e5",
+      "sha256": "0d9abb4b987dfacfff493b7801c95849046dc96d0152f7b24e00fa4e49dd8179",
+      "bytes": 1805
+    },
+    "FlashSinkhorn.png": {
+      "mode": "100644",
+      "git_blob": "9da2f5b1c1cdd36a5954e4f02ff700fd8d4d5b48",
+      "sha256": "686c4e35ffd24ff5f90800b5b2be279b9f3b375613738ece319e972ba2af1f58",
+      "bytes": 2130450
+    },
+    "LICENSE": {
+      "mode": "100644",
+      "git_blob": "e8f5d3db1ad03e7ceb01f650f4c154f3c45e24d1",
+      "sha256": "14950acdb0ed868459b66f9024a1b3f73f97683702fb77015abc51c83dea8cce",
+      "bytes": 1079
+    },
+    "README.md": {
+      "mode": "100644",
+      "git_blob": "31c7dc1b5e9c02a10f5724357a8efb49115fa5a9",
+      "sha256": "56ef71cdb8d10bcc35d83e7290ee5910f85401d95c13d4771c97db6882bcbda3",
+      "bytes": 5370
+    },
+    "build.toml": {
+      "mode": "100644",
+      "git_blob": "22f56e6fc22e79f9d92091418010f5081695bb2a",
+      "sha256": "1b8d70d3b6fc8b5f66ee71df0643625df0bfc7c397c410347dae3ba23f6313e9",
+      "bytes": 355
+    },
+    "examples/README.md": {
+      "mode": "100644",
+      "git_blob": "1489d2cf3f371c9110db3c3b9f371c3d013cb4ac",
+      "sha256": "68d863c9b581647794f208321e2f02511dcc4d2d6c2e35f314ba891f70d4f207",
+      "bytes": 9001
+    },
+    "examples/_notebooks.py": {
+      "mode": "100644",
+      "git_blob": "d86c36debfffbccc2e2a60ee74d08284206dab1d",
+      "sha256": "0b9db278ae7ef6a4ab2ebebbeb4cf8e5b7865cbbe2270ce237aaa325bab7203e",
+      "bytes": 10681
+    },
+    "examples/_plotting.py": {
+      "mode": "100644",
+      "git_blob": "d71c689d8b40e140c54ba03388ff73cb3638d0af",
+      "sha256": "70f696f109b69dfbe0dc377c96d77ce271081357cd4d88ff269aaf0307f671b2",
+      "bytes": 5638
+    },
+    "examples/_transport.py": {
+      "mode": "100644",
+      "git_blob": "0eef512ce936f366c30286d8a27ff91ce2dad056",
+      "sha256": "ebaed2e3ae160fa9ab98d06183c2cb50631171cc56629e825efb4ea0e5c34ffa",
+      "bytes": 3718
+    },
+    "examples/advanced/images/colour_transfer.png": {
+      "mode": "100644",
+      "git_blob": "0072cbac8c1fddb8bcabbb9486422cddc0a31051",
+      "sha256": "9676a8f0026a34dc7f77d741aa890c72ac69faf02d0990b99974a4fc750b2b85",
+      "bytes": 1076718
+    },
+    "examples/advanced/images/hvp_newton.png": {
+      "mode": "100644",
+      "git_blob": "29064d871879c1af25bb514dea50bacdf7f39ae4",
+      "sha256": "a20c63345b47fe732db1dea4c95193fe04e2cae1cc2db9d173cd4a83b6001174",
+      "bytes": 77532
+    },
+    "examples/advanced/images/label_cost.png": {
+      "mode": "100644",
+      "git_blob": "e15a88ef6b56aa15ad9b161b8d10e9f3045ac6ff",
+      "sha256": "38c0b85e194f723c86b9342d4de07e5a94fe13e0e3f4dd5eaa7905cf02831cc4",
+      "bytes": 533789
+    },
+    "examples/advanced/images/label_transfer.png": {
+      "mode": "100644",
+      "git_blob": "5a514f5a2559233c464e452447f93fa91598291e",
+      "sha256": "e4f8a9302293ea0780fbb5b4a30a56b4923e17645b81df18afc4a54cba66d02d",
+      "bytes": 367756
+    },
+    "examples/advanced/images/semi_dual.png": {
+      "mode": "100644",
+      "git_blob": "1de2d5c2687d77139a168c56425883917d507110",
+      "sha256": "ad6f07ef98adb8e03d47294d5d1d75371314e8dabeba94b9589a257cf955b7d3",
+      "bytes": 99910
+    },
+    "examples/advanced/plot_attribute_transfer.ipynb": {
+      "mode": "100644",
+      "git_blob": "68035b4143caa4c092d380fad9b68b8fdde60f29",
+      "sha256": "7eee6c326e125acca3c81e31979e6e780ede4892b695a3842c4928d3bfbe9f92",
+      "bytes": 1938096
+    },
+    "examples/advanced/plot_attribute_transfer.py": {
+      "mode": "100644",
+      "git_blob": "677f82cad2b7da8c18d240018daf2123995496cc",
+      "sha256": "f10dd54c55d96ef661082fcb61d6f8fba584309a49a67323c6226af4d0745abd",
+      "bytes": 5851
+    },
+    "examples/advanced/plot_hvp_newton.ipynb": {
+      "mode": "100644",
+      "git_blob": "4ad41f51fba34c0c45dd3d19db39b4784cf2e77a",
+      "sha256": "1a4466dd0fca8383a78892c1a19aa8e3fc440247b831667ecb3111a5e8a29e25",
+      "bytes": 118378
+    },
+    "examples/advanced/plot_hvp_newton.py": {
+      "mode": "100644",
+      "git_blob": "d07d2a896e700a2a5e7f0c2fdc335d7b79f97b04",
+      "sha256": "b1aa535e3c8741a67b75e0173b941f0843f040662ddd457d109a24a9710417c0",
+      "bytes": 8286
+    },
+    "examples/advanced/plot_label_cost.ipynb": {
+      "mode": "100644",
+      "git_blob": "d609dab9375eec3bd01cb76ef54a45197749e29b",
+      "sha256": "fca7670161423aa1b868674a45112f4222367c885f4d4b983ca24e54cd6fc7c6",
+      "bytes": 722806
+    },
+    "examples/advanced/plot_label_cost.py": {
+      "mode": "100644",
+      "git_blob": "1a033bcbe5887d3a32581b73183b5d385e6f6785",
+      "sha256": "f21a5c082b6fe8b87f2d28558591a1665e089f84524d96ea7aa3ff01c7cc68f1",
+      "bytes": 5410
+    },
+    "examples/advanced/plot_semi_dual.ipynb": {
+      "mode": "100644",
+      "git_blob": "080293fd7a258d1ae0b5909bae342b6035d7181a",
+      "sha256": "d954c13a769eeee098aad47336ad9b8506f0ce9a5deb3fe691539b65f48b02c4",
+      "bytes": 144331
+    },
+    "examples/advanced/plot_semi_dual.py": {
+      "mode": "100644",
+      "git_blob": "5dec6372e0feb083b2ee2f436fdb0d078057c9de",
+      "sha256": "4e2d17a1fd4f108c7ee7dd260c6b0d7e33937a4e8aca02fd436fc00d831d8ce1",
+      "bytes": 5459
+    },
+    "examples/choosing_parameters/guide.ipynb": {
+      "mode": "100644",
+      "git_blob": "fc7db5403752d7ab8807a19dfab79bf35bfacef8",
+      "sha256": "14befab7001a2262aa7305fd224155a769d5ea0a09348c4bf9612ce67f2a85a6",
+      "bytes": 442497
+    },
+    "examples/choosing_parameters/guide.md": {
+      "mode": "100644",
+      "git_blob": "7cf751d12376b9f0c1134f7bc753c3296e34d8ae",
+      "sha256": "730ebaa89ad0753b3211cbf7fc7e34f82172db5dc1204bff2e1a281dd505dfea",
+      "bytes": 10288
+    },
+    "examples/choosing_parameters/images/conventions.png": {
+      "mode": "100644",
+      "git_blob": "a51225c1be483677256319b3c753aa7fadadda00",
+      "sha256": "d46527b38e1c5b8d1323d0828268f7771290fa26f1e58005193d87bdc82ad424",
+      "bytes": 143189
+    },
+    "examples/choosing_parameters/images/convergence.png": {
+      "mode": "100644",
+      "git_blob": "248904c4071a64cd13b2b5b8007019b9fa0fe4d1",
+      "sha256": "baf27cbdeb2b4a581119c0ba57d7e1ee83aaec0f59c7e647abde9d8b8150442a",
+      "bytes": 44106
+    },
+    "examples/choosing_parameters/images/unbalanced.png": {
+      "mode": "100644",
+      "git_blob": "e55bc52b73a2bbaf3c574055d3e07c5aff0db3b1",
+      "sha256": "690ab743ac289279b4d69c88db1485992b6587f9270f1af4a4096b55a8e25eac",
+      "bytes": 314796
+    },
+    "examples/choosing_parameters/images/unbalanced_reach.png": {
+      "mode": "100644",
+      "git_blob": "529ce1aaad4cd62a650c5cc6e9ea1ea28dd05ef7",
+      "sha256": "17fd157d62e1a2bde607415fd19f66b225f74564fde3b4adeedc254f1878713d",
+      "bytes": 24720
+    },
+    "examples/choosing_parameters/plot_conventions.ipynb": {
+      "mode": "100644",
+      "git_blob": "4189558dc27bdd9243ef8a32fb93f629a9b70972",
+      "sha256": "ca243c9b7a4ba39772b9d41be1b68daf7dbc04ee1957ea1353472e618bc2f817",
+      "bytes": 204008
+    },
+    "examples/choosing_parameters/plot_conventions.py": {
+      "mode": "100644",
+      "git_blob": "887fe9bc40606701f6884b8acc10a19205ec492d",
+      "sha256": "083e22c81ba91e44c3d8ebb5964940301e2c2f29363fa0f908b6eb948b122c47",
+      "bytes": 7000
+    },
+    "examples/choosing_parameters/plot_convergence.ipynb": {
+      "mode": "100644",
+      "git_blob": "b058d69343724f7586aa48c38c3b0a40d4b44769",
+      "sha256": "96186a467967536a25f10e22a0df8260afba31bc663c07cf14757f04420a0270",
+      "bytes": 70782
+    },
+    "examples/choosing_parameters/plot_convergence.py": {
+      "mode": "100644",
+      "git_blob": "fe397595a9ea6c9294ed682783b767a4585ba32d",
+      "sha256": "5d223337d1d5cc6dfb1bcdd9d8a6c3cd3b96a4654430a4a9c73eff7e549dad01",
+      "bytes": 6126
+    },
+    "examples/choosing_parameters/plot_unbalanced.ipynb": {
+      "mode": "100644",
+      "git_blob": "e58ee80a25644f0f222c684397858486c5209ba4",
+      "sha256": "f8f4cc179735040e9e9d45a5c604ec3d0484217e4ecd0aea336532a95f841fb7",
+      "bytes": 464259
+    },
+    "examples/choosing_parameters/plot_unbalanced.py": {
+      "mode": "100644",
+      "git_blob": "f3fb4bda46c9cc2fb980a6d5934f065ba4c10b67",
+      "sha256": "37c5a040d1771bb16710daa519f8b762a199643d8fc016b05c857029ee36d96b",
+      "bytes": 5371
+    },
+    "examples/getting_started/first_steps.ipynb": {
+      "mode": "100644",
+      "git_blob": "1fe0c24017ad2788b59be6d1faff12aadfd24d67",
+      "sha256": "06a986f6a3dcb6e5b58c9bdbe28ed0b877d1e343d834dd14db146dee2300125a",
+      "bytes": 598299
+    },
+    "examples/getting_started/first_steps.md": {
+      "mode": "100644",
+      "git_blob": "c592b7279998f454ac1a13490b9782d9c3fede70",
+      "sha256": "8343aa19971f3f026b918c2f30207dfdfd1978338bb87ecf422e8099f521b171",
+      "bytes": 16012
+    },
+    "examples/getting_started/images/basics.png": {
+      "mode": "100644",
+      "git_blob": "bc5b4baf2c0f74b65ddb763794051eb3222bc2ea",
+      "sha256": "2f994ca178ce66e0eedf097bc4ce00d6dbbcf33af4b607b619c822eb81ea22c0",
+      "bytes": 171381
+    },
+    "examples/getting_started/images/blur_maps.png": {
+      "mode": "100644",
+      "git_blob": "4692a0ecb6f4be1fe5b101fe91887856257e9d2f",
+      "sha256": "eb551b8a374a5a08cfdf3df8f1703dc2ab574612420a50b7fcc2644204fd0018",
+      "bytes": 277294
+    },
+    "examples/getting_started/images/blur_translation.png": {
+      "mode": "100644",
+      "git_blob": "21210eb6b58b7fdfaaf5554ca612d7f4b40ddab0",
+      "sha256": "8527e29bd236cded8eb41c82f0a809af7ceb68763c925dfcdbf43b2d37a7ae3f",
+      "bytes": 41358
+    },
+    "examples/getting_started/images/gradient_flow.gif": {
+      "mode": "100644",
+      "git_blob": "b622fdb0496f0522e2de3f996ff3df8847205ae8",
+      "sha256": "e75ab62db4740788526c7cc1c7c119ef7eda4133341ba8e509be10b7d437ed77",
+      "bytes": 470321
+    },
+    "examples/getting_started/images/gradient_flow.png": {
+      "mode": "100644",
+      "git_blob": "1cf7940492462d04d10cef067c6987bb9ff16d7d",
+      "sha256": "47101f6525df269ba0c3588852eef9002ff41324a12220a58221bbeee2a8002f",
+      "bytes": 172342
+    },
+    "examples/getting_started/images/tutorial_directions.png": {
+      "mode": "100644",
+      "git_blob": "8d325ab769480a22f30a019a069dfecd77105b8f",
+      "sha256": "934020d96cac83dd1924be520117a4146b8e15ed2b3b3604ef26fc5b8426686e",
+      "bytes": 244640
+    },
+    "examples/getting_started/images/tutorial_fit.png": {
+      "mode": "100644",
+      "git_blob": "f94f84a79153187b4cd4de7c6b5e1b97b09a5edf",
+      "sha256": "d85191eb0d391af78564580a98f138a89cd6058bf54f993fe008fdce6112a73c",
+      "bytes": 184692
+    },
+    "examples/getting_started/plot_blur.ipynb": {
+      "mode": "100644",
+      "git_blob": "5c1e181e793d835e31fcae8c730a3185c0427864",
+      "sha256": "5029120ec2726ba54f2c8b5c30cdac1e2c1a6c9475eadd21980f1d8db186e03a",
+      "bytes": 436907
+    },
+    "examples/getting_started/plot_blur.py": {
+      "mode": "100644",
+      "git_blob": "10f95a0d48a7459e7b348355ae617c59597bd1a0",
+      "sha256": "43e9936ef03e6cfb6872ca4e5c8efe763241514f9885228bce6e9a4d63f29757",
+      "bytes": 5572
+    },
+    "examples/getting_started/plot_gradient_flow_2d.ipynb": {
+      "mode": "100644",
+      "git_blob": "e4baa5d67cb19ccbfb2113c862c162ffbed94e91",
+      "sha256": "978ddcf676674e99a42e124054b8c3f60edfc07c2367a9ebb25644a592a88e02",
+      "bytes": 868966
+    },
+    "examples/getting_started/plot_gradient_flow_2d.py": {
+      "mode": "100644",
+      "git_blob": "92da038c9fc13df60a82ccd1b1548de9d6356288",
+      "sha256": "288fb419f7f6f1f11a87a6a0ee9bc147b54f603789283489598accd3805519e1",
+      "bytes": 5310
+    },
+    "examples/getting_started/plot_sinkhorn_basics.ipynb": {
+      "mode": "100644",
+      "git_blob": "cb859e035983b01104450593abb51e684f224c0f",
+      "sha256": "33b832be8c527952dc94172b19070da99fe514ff715f0f40e83d843fb427f896",
+      "bytes": 240893
+    },
+    "examples/getting_started/plot_sinkhorn_basics.py": {
+      "mode": "100644",
+      "git_blob": "58bee700da0e69e4c93ccf41bd5a9aaf8060e10c",
+      "sha256": "132818cf2ee2bc87966dc8fba270a61cc8820e0c2c599dbc2f6745e803412297",
+      "bytes": 6186
+    },
+    "examples/scale/images/embeddings.png": {
+      "mode": "100644",
+      "git_blob": "6db0a8e42be3fe9f93b31c342dc620ad9de968d9",
+      "sha256": "7c05ff326efe7798e93afe0a3c8878eb8e7303217e372e88811d9595c3a6ae98",
+      "bytes": 51109
+    },
+    "examples/scale/images/many_problems.png": {
+      "mode": "100644",
+      "git_blob": "318f5d7e3a2d818874574ac14cec76b1f9b841ff",
+      "sha256": "86ebdc0c9819781c67efe39713ed6481dd3d011c8e84f33dfa95753f1b2b8d8b",
+      "bytes": 34256
+    },
+    "examples/scale/images/multiscale_3d.png": {
+      "mode": "100644",
+      "git_blob": "0d05b329855dee22c0be1c70ee4eb1406251e21f",
+      "sha256": "d93838458e4521bc2cb0e515ad79ce867c8aede326c076e452ca1ff393df9f61",
+      "bytes": 251664
+    },
+    "examples/scale/plot_embeddings.ipynb": {
+      "mode": "100644",
+      "git_blob": "9119ee6f94f706c21f8b57616828eb2355c94dfc",
+      "sha256": "016ac14329c71ed5d84f16587297226c1a4cd28b82aab1df711014224228a000",
+      "bytes": 79672
+    },
+    "examples/scale/plot_embeddings.py": {
+      "mode": "100644",
+      "git_blob": "eca7d3a733ee719d13310d80d678b059e7e01a1b",
+      "sha256": "9b26986de23e22b75feccb13cdd57ebb193c0327ce35115a849afee1844900e5",
+      "bytes": 5675
+    },
+    "examples/scale/plot_many_problems.ipynb": {
+      "mode": "100644",
+      "git_blob": "802f843682f60afd59391178b186dec138c8716d",
+      "sha256": "b2636fdfad4d73b457e4f8a6846ecf0c4f6f076c9cd05718ca9a3f9f755eada6",
+      "bytes": 54030
+    },
+    "examples/scale/plot_many_problems.py": {
+      "mode": "100644",
+      "git_blob": "b4aa2ef1279158bcb6f283e4d3da199bfd48b59a",
+      "sha256": "41db6038ee9b19fb32a0ab21bf63b9c31c10e4b8d50636a312241a0309d1c08a",
+      "bytes": 3337
+    },
+    "examples/scale/plot_multiscale_3d.ipynb": {
+      "mode": "100644",
+      "git_blob": "25adda2fb10e00f7333aba470b519dd7f0b2f55d",
+      "sha256": "f2a0091485a6e62738d00acddec9738f9f60afc9ad44c3aead00ffccdd10ddc5",
+      "bytes": 348178
+    },
+    "examples/scale/plot_multiscale_3d.py": {
+      "mode": "100644",
+      "git_blob": "9c7755ad2dc095605f0d3a80c83eae4fb83c5288",
+      "sha256": "8e4c4b1f04e5edfb653928cc9b536c5d06f14781a0078e3509e2a12cceddece1",
+      "bytes": 6543
+    },
+    "flake.nix": {
+      "mode": "100644",
+      "git_blob": "7a0c89317f8dceb593d9e41da8a8aa405baf8c52",
+      "sha256": "ba937f6c3378b28d07edefc59767d4f8bafa897adaf333397d19c3b1a3007179",
+      "bytes": 394
+    },
+    "pyproject.toml": {
+      "mode": "100644",
+      "git_blob": "c43eb33280a4ddc99605f459ffac9e775711d7f8",
+      "sha256": "3e29cc4086c3b712df5ed38423682f8817799d3cbc9e037351fc4d44a59870d5",
+      "bytes": 1507
+    },
+    "tests/test_examples.py": {
+      "mode": "100644",
+      "git_blob": "ade0de93845a05d477462d4c638e4021aacabac0",
+      "sha256": "a2fd7a42025ff807d7e4533aaa903efa70f2542d1e0214dd5173e3cae3a92652",
+      "bytes": 5888
+    },
+    "tests/test_examples_index.py": {
+      "mode": "100644",
+      "git_blob": "1e52f141d53b52ff1d18379f42efa8f6db455ef3",
+      "sha256": "d75edb96887b4fa9da6c5dbf9a81ee5c4713746b7ef03994d927d9953cde6acd",
+      "bytes": 3457
+    },
+    "tests/test_examples_plotting.py": {
+      "mode": "100644",
+      "git_blob": "0a7e3fc09e309d23bda2eb0690639789ed0e0a5d",
+      "sha256": "4d307d4d940883a0987247378bf5d08dc61d9a1723aeddd370fcdeda1885ef40",
+      "bytes": 4092
+    },
+    "tests/test_hub_package.py": {
+      "mode": "100644",
+      "git_blob": "ccfb9abd475559c8708ca008443f3be9ff0cbd3c",
+      "sha256": "a4b2021752b124f2d44c55c9d8a500f611e84e0fa54dd07db5c1b63fe57d4134",
+      "bytes": 195
+    },
+    "tests/test_notebooks.py": {
+      "mode": "100644",
+      "git_blob": "16217771785ff59bec6f9cbaa7702254a6f5b1f5",
+      "sha256": "93a7a9364a748c9a25c67555d599b06241ffe5bd4dea0ab16d2537515ae1ffd5",
+      "bytes": 11843
+    },
+    "torch-ext/flash_sinkhorn/__init__.py": {
+      "mode": "100644",
+      "git_blob": "7e9bf01cbef8799aa13aa7b25e15126b28607534",
+      "sha256": "cab4e42dccbc963a793d55fcfa58f5c4adf80b8aa877e29bf9b0484092194131",
+      "bytes": 1130
+    },
+    "torch-ext/flash_sinkhorn/_autograd.py": {
+      "mode": "100644",
+      "git_blob": "ddcfc72b6225e387391c2a4ed71cd47570cc29ee",
+      "sha256": "740957ed97df8e3458a7d674b9982e3e74657ea21d288243517796ba8477a5c7",
+      "bytes": 20950
+    },
+    "torch-ext/flash_sinkhorn/bench/__init__.py": {
+      "mode": "100644",
+      "git_blob": "7269ec1f49b4aad679a2a6d4cc02ba8672c62d6d",
+      "sha256": "b7b6bc10a1ee414b53569370ca60e06728456a9e067233d058cd26d940b12586",
+      "bytes": 75
+    },
+    "torch-ext/flash_sinkhorn/bench/bench_backward.py": {
+      "mode": "100644",
+      "git_blob": "be9f9810b0b5dff98dc5b57776d8191ef51bf9ce",
+      "sha256": "9385306424c0cd95627e12812994263f94ac58c6f5a17e8861b49b06fb725986",
+      "bytes": 43098
+    },
+    "torch-ext/flash_sinkhorn/bench/bench_forward.py": {
+      "mode": "100644",
+      "git_blob": "f9eed33af37fdcd6342cd8355545d7c0c278f96a",
+      "sha256": "5ec29b2303df3bdee2271c65f4f4e6986e30c07b486463beb1fe7c138e321da7",
+      "bytes": 65331
+    },
+    "torch-ext/flash_sinkhorn/c_transform.py": {
+      "mode": "100644",
+      "git_blob": "84dffb4e593e172ebed77043aa98f6274ebe7e2d",
+      "sha256": "0ca20d2d1713c342bbdbb41ba484676a1b182136592f52c0a1045cdf5c266834",
+      "bytes": 8762
+    },
+    "torch-ext/flash_sinkhorn/cg.py": {
+      "mode": "100644",
+      "git_blob": "05761a43dc3a8443412322185d95ed8a49b2ad83",
+      "sha256": "014962c531d3595d3297daee8db6acc4f80ae698cace06f0430622a40bb73ba6",
+      "bytes": 11819
+    },
+    "torch-ext/flash_sinkhorn/hvp.py": {
+      "mode": "100644",
+      "git_blob": "478e8ed33a8ea5c3ef321ab1f406daa6b234e6f0",
+      "sha256": "1e8be7d853761f5321bdb59c04026e6667cc04a1254cae535737924beccf098a",
+      "bytes": 29217
+    },
+    "torch-ext/flash_sinkhorn/implicit_grad.py": {
+      "mode": "100644",
+      "git_blob": "740756d0fc0664512a9f55888d79e694f1f3b1e4",
+      "sha256": "0b89432568a63b17e726e7f8579ea67b2dff4d37029a207cd13b051bf15b2e2e",
+      "bytes": 10983
+    },
+    "torch-ext/flash_sinkhorn/kernels/__init__.py": {
+      "mode": "100644",
+      "git_blob": "1e1246bc8443c94ff469a861adadaed2ba79624f",
+      "sha256": "ffd3e6a672a2ccb490b00337d4f659d44e0e0af7a5c1f82176633f2867d4d909",
+      "bytes": 3330
+    },
+    "torch-ext/flash_sinkhorn/kernels/_common.py": {
+      "mode": "100644",
+      "git_blob": "b9b23dc6d7c70178c56f7745827063bbafd1316b",
+      "sha256": "682f9753130e24fb4f96ef804ad5ee6ef9e1a7f963bd76a5a9d849517e1aefcc",
+      "bytes": 9495
+    },
+    "torch-ext/flash_sinkhorn/kernels/_triton_helpers.py": {
+      "mode": "100644",
+      "git_blob": "d4ed06a71d28abcf97adc503f9b3b1c4304f34b7",
+      "sha256": "ecd312a5b9c426a681d67ef7a138cd5ee009fcf0b56ad621636629d2580e7640",
+      "bytes": 5394
+    },
+    "torch-ext/flash_sinkhorn/kernels/apply_flash.py": {
+      "mode": "100644",
+      "git_blob": "73b9d486f7ead958a4b044507bece53ed310658d",
+      "sha256": "0eae4bbc7718a0605ee42caf73ec04912688cd2004a3d75a990d1a988be29c9c",
+      "bytes": 33800
+    },
+    "torch-ext/flash_sinkhorn/kernels/apply_ott.py": {
+      "mode": "100644",
+      "git_blob": "68e214566946d1054e1cfc4c63239b076bb754ac",
+      "sha256": "d3f77c1a0e237d11aaebd28c746cd188271f13e290c0625ed150b4119ed3d7e2",
+      "bytes": 19426
+    },
+    "torch-ext/flash_sinkhorn/kernels/c_transform_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "501044f6de880e0ff158ffdb62e7318f7ea70727",
+      "sha256": "26e104b7c40a5acb2e88415a10868ab28a2a6f0917747a0a86c80927a3fa7b1c",
+      "bytes": 11521
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_blocksparse_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "c55a10f625192da3f934edb7aca12b09706600ac",
+      "sha256": "e2847de9c1f5cb671f07f6c1c1e07913cf8602c338e42aba1e63e444173b0b15",
+      "bytes": 6787
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_flashstyle_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "e29fb66495239256d871a04265b6409449590f9d",
+      "sha256": "a1a487e558ae0276b1d67355ca27808568c906b1160586d41c46a99a579000b6",
+      "bytes": 50466
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_splitn_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "eeeba1b69536526d7f762ee246fcd7a7fc0bb4fc",
+      "sha256": "ddcd6b6bfe7c867647dd05345835c3e3b5bc9142c1e841d917d0e17b70922181",
+      "bytes": 7949
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_triton_apply_fused_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "228cc022dbc1406d1a3c1513e019ba1c06f1c111",
+      "sha256": "45a985438f50e9b992e808401b28d75812be874f476bd29c8a72e0405d6bc0a9",
+      "bytes": 18717
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_triton_apply_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "933ebe91e5178e0359975860b3064b157a002eca",
+      "sha256": "30dacf2b60f554e478f635ceb22d5a4000d0833f547aea079419b6e67d43af76",
+      "bytes": 550
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_triton_cg_dense.py": {
+      "mode": "100644",
+      "git_blob": "a4a5cc346eb8bede58e5172167ea7a33570519d8",
+      "sha256": "3287bc03b474d1f8eaf9cd7b876b4bb347ee7a833fac597fc0a9ba263520ea4d",
+      "bytes": 18204
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_triton_cg_python_batched.py": {
+      "mode": "100644",
+      "git_blob": "2dc91d39ad490654cefa90f802792f97b87fbe9b",
+      "sha256": "2ca936c508d181850409eda141d6ba145c8eb6fd198cf6ce46646a8052109654",
+      "bytes": 12454
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_triton_geomloss_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "2f0910713d75585ece5009379b113826321f6a0a",
+      "sha256": "1df9e82e4ebbb0d7911103a9de88f09074c339bb12fc0908ea1086941fcd9148",
+      "bytes": 10793
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_triton_grad_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "dbde14203d74371e5a140b26924880630f794272",
+      "sha256": "da38f4eb8730b8cfe2ed01ce4d887bfbee92dab5c62ee23102ab510e97514433",
+      "bytes": 43910
+    },
+    "torch-ext/flash_sinkhorn/kernels/sinkhorn_triton_ott_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "f8afb7335528caf32fa49f11bc8e936fcb39f6af",
+      "sha256": "b459bb506f365b98584016a151e13650c23b4aa5805611b73e897b39526d565f",
+      "bytes": 25329
+    },
+    "torch-ext/flash_sinkhorn/multiscale/__init__.py": {
+      "mode": "100644",
+      "git_blob": "9d1f0c6a989ae40467e80fab00c7f11e21c459a1",
+      "sha256": "9be08db1ba74de97a7c0d3cf71ac6cb5162adb9ec84e0a5a1319e6dd1a7ddc46",
+      "bytes": 340
+    },
+    "torch-ext/flash_sinkhorn/multiscale/_preprocess.py": {
+      "mode": "100644",
+      "git_blob": "ed8ae530fc486025e397ebc23bd974dab44dbb0e",
+      "sha256": "3712ed7f39822b55742e8c056a457ca745e78c30bd473ba26c58c40b97e77b9b",
+      "bytes": 2658
+    },
+    "torch-ext/flash_sinkhorn/multiscale/block_mask.py": {
+      "mode": "100644",
+      "git_blob": "23e9ee947ee554d2805ca23044630131f783a868",
+      "sha256": "f9bdf923594ac4759e743e4a20378438dc610d08474b23669626ff6eb42a3673",
+      "bytes": 16221
+    },
+    "torch-ext/flash_sinkhorn/multiscale/check.py": {
+      "mode": "100644",
+      "git_blob": "06dd39dcc467ac3d986d53627c09ec5950954f00",
+      "sha256": "503510c22419ecbf5503b7f219144a005191d8ec07aa721aa134cbb4cf4219f4",
+      "bytes": 9188
+    },
+    "torch-ext/flash_sinkhorn/multiscale/coarse.py": {
+      "mode": "100644",
+      "git_blob": "e31da8865134412f9cdc55e0de4a0c2aafc6406b",
+      "sha256": "52f07f4f68e644cb56e2f3a16f2ab630615b90519e2aec9842c5482c09c35bcd",
+      "bytes": 6211
+    },
+    "torch-ext/flash_sinkhorn/multiscale/envelope.py": {
+      "mode": "100644",
+      "git_blob": "b7add63698455f25eb49b7ca70920dc55da89b8c",
+      "sha256": "a807e2c67e1b48897146e82c0cd984a69f51edb2ccd22f72f89f90d3808a0d4c",
+      "bytes": 2383
+    },
+    "torch-ext/flash_sinkhorn/multiscale/fine.py": {
+      "mode": "100644",
+      "git_blob": "881cd01075392e33b0ecc0162cae8c767c06b0a0",
+      "sha256": "9897d1163a5eed4f2f32d4f0ef2793164e8160a0a5e718b0d79e47f9cfcc024f",
+      "bytes": 11141
+    },
+    "torch-ext/flash_sinkhorn/multiscale/geometry.py": {
+      "mode": "100644",
+      "git_blob": "9ba7fdd0f0130413824f237dc9abe3f6113c6e6e",
+      "sha256": "c96670daef9f9aac0352b83540ee64860cc734f00d06ab86b0a63e7433ec3a61",
+      "bytes": 13251
+    },
+    "torch-ext/flash_sinkhorn/multiscale/mask_refine.py": {
+      "mode": "100644",
+      "git_blob": "3ea6ee1ca1491d23f943456afa882458dfa40226",
+      "sha256": "1a848f4d94cb526a276f763258886554531f450a73c15ea7208db55f7d1333de",
+      "bytes": 6890
+    },
+    "torch-ext/flash_sinkhorn/multiscale/solver.py": {
+      "mode": "100644",
+      "git_blob": "40f6cf99f35c86ff96fa7641626f9c9ad4cd729a",
+      "sha256": "a9c93813c77bcc039e6bf6b4c911255d0f0e59da21dc0baf11089d1abfa0464a",
+      "bytes": 21455
+    },
+    "torch-ext/flash_sinkhorn/multiscale/sparse_step.py": {
+      "mode": "100644",
+      "git_blob": "373e63cfa872555587a4b660cc7395289a7e0269",
+      "sha256": "956c182ffcdfba777ac469c732ae21d9b5b14681bbbd90c645263fcc9408904f",
+      "bytes": 7888
+    },
+    "torch-ext/flash_sinkhorn/samples_loss.py": {
+      "mode": "100644",
+      "git_blob": "44d76ebb4fb6e805928169edf58d6cada62d1064",
+      "sha256": "f91f46bbec7b27401c38ad6d5d2d5e0b334c7e8541450637266568971ffd63c8",
+      "bytes": 38839
+    },
+    "torch-ext/flash_sinkhorn/sinkhorn_solvers.py": {
+      "mode": "100644",
+      "git_blob": "960aabd26d9b6ba3341aaa8b273ada5edc22cb9f",
+      "sha256": "0095dce911ae02c12c34b592e47b2f2058690e15c8c3b9e5a8efd3e98a3c7071",
+      "bytes": 36994
+    },
+    "torch-ext/flash_sinkhorn/testing/__init__.py": {
+      "mode": "100644",
+      "git_blob": "20bae7055c9a11f12b8c82194323766df7d0fbf8",
+      "sha256": "ea956f5de5ace669b01a3684dcd093715ae49917f0b1ce050ad33d9c78c0b4a2",
+      "bytes": 93
+    },
+    "torch-ext/flash_sinkhorn/testing/reference_hvp.py": {
+      "mode": "100644",
+      "git_blob": "a3a7846a380e80f7488d9431599fa2749d9cbfcb",
+      "sha256": "e5c8f2b66c326f081ecd78625dec3b40811b3eb3da519f1d54a94fe94db2721c",
+      "bytes": 11022
+    },
+    "torch-ext/flash_sinkhorn/testing/reference_sinkhorn.py": {
+      "mode": "100644",
+      "git_blob": "bdbf6c1148708e36ca92002f9301db388f4ae58b",
+      "sha256": "27de5583d69c3911a5f1459a4bf66990875ffe234f9c914cee8c9e791213465a",
+      "bytes": 11358
+    },
+    "torch-ext/flash_sinkhorn/testing/test_apply_plan_flashstyle.py": {
+      "mode": "100644",
+      "git_blob": "9f17e49454b6f4b27f53a22bccba316193fd3661",
+      "sha256": "ed480029992bf2b67d7bfccc261a6895b9a2ce9e62acdf726a331a70643e25a2",
+      "bytes": 18680
+    },
+    "torch-ext/flash_sinkhorn/testing/test_autograd_semantics.py": {
+      "mode": "100644",
+      "git_blob": "59d1cccdefaa462443a9caa7e74d2748ddf2578a",
+      "sha256": "65789437b9001b0a19f965b050fe72710a8e85a093b36e1e0beb90316685bb37",
+      "bytes": 11118
+    },
+    "torch-ext/flash_sinkhorn/testing/test_c_transform.py": {
+      "mode": "100644",
+      "git_blob": "4479ff27ff4b868f24bb3fcc728915640bd82ae1",
+      "sha256": "db1b0c4e6ae17694a32b55bef1aa4f6a6013abc3c59838000a625acb5adb53cb",
+      "bytes": 14058
+    },
+    "torch-ext/flash_sinkhorn/testing/test_flashstyle_parity.py": {
+      "mode": "100644",
+      "git_blob": "703fcc969a2e7a2602b3c307fd883e8b35dfaa14",
+      "sha256": "02a30360434146132e81817abc3ce3e23e59e2e612c9ab18d18ac1033ed8e913",
+      "bytes": 24859
+    },
+    "torch-ext/flash_sinkhorn/testing/test_geomloss_sinkhorn_triton.py": {
+      "mode": "100644",
+      "git_blob": "e867bd3f4eb8fc5bae9e302c359963bba08c0fc4",
+      "sha256": "272a5e99a8cf80ffc99536f12da892b52cfe57f288c444bde7d055ebf225df77",
+      "bytes": 13241
+    },
+    "torch-ext/flash_sinkhorn/testing/test_geomloss_vs_triton.py": {
+      "mode": "100644",
+      "git_blob": "95456bc7eadc0ebcad5a0149d44f1e68b718e44b",
+      "sha256": "7d39f493971fcf6bd46f96f4c9128912395c8cf6a43c95690ba545da99e6e934",
+      "bytes": 2031
+    },
+    "torch-ext/flash_sinkhorn/testing/test_half_cost.py": {
+      "mode": "100644",
+      "git_blob": "ab640abcb70a746324b333769b7c3b90f1199782",
+      "sha256": "4d1692e60ab184dbe4456987b99df95cbd25d40f866bebedd4736cbdc733b605",
+      "bytes": 4877
+    },
+    "torch-ext/flash_sinkhorn/testing/test_hvp_parity.py": {
+      "mode": "100644",
+      "git_blob": "62f0059ab82a5558abc15faa02f3e19a8d38cf48",
+      "sha256": "3321661004067db0b822a6c82ab56bed632412a29ad3586239b37c767ca25d61",
+      "bytes": 12950
+    },
+    "torch-ext/flash_sinkhorn/testing/test_hvp_sqeuclid.py": {
+      "mode": "100644",
+      "git_blob": "defd399c7f09c5a78e00229ffbcbc672e70128d9",
+      "sha256": "f69a5badad31305522979a8c661fa95f3f312c5109e7791300c7bd0bb1d134fa",
+      "bytes": 8751
+    },
+    "torch-ext/flash_sinkhorn/testing/test_identities.py": {
+      "mode": "100644",
+      "git_blob": "a444dd3260ac5bccd3f5f95949e7ab8d0abe2537",
+      "sha256": "927f367a5e144eee3a3e885e537bca930da92522a8e60e97c3645ba9f2a345a2",
+      "bytes": 2352
+    },
+    "torch-ext/flash_sinkhorn/testing/test_multiscale_kernels.py": {
+      "mode": "100644",
+      "git_blob": "01858a5572a2b232a59cdeb8a5973cf3f591eaa7",
+      "sha256": "c669fa3455e58697e6d7f06d7b57dde58abe71be369da01aa266f884390cc33f",
+      "bytes": 18653
+    },
+    "torch-ext/flash_sinkhorn/testing/test_multiscale_solver.py": {
+      "mode": "100644",
+      "git_blob": "286263898e861983ffc04c569dd99f5cc8be02b3",
+      "sha256": "d54c16f7e0f05114c56f406a8afabdb0bb373405523896def8694cbda4895df5",
+      "bytes": 54579
+    },
+    "torch-ext/flash_sinkhorn/testing/test_ott_vs_triton.py": {
+      "mode": "100644",
+      "git_blob": "4f12bd33950d30a84fdeb937f44f7dd3804be038",
+      "sha256": "44eaa5c52eadb4a83eb5883cbf041d29aab083045a510eff4ec87dd642f937cc",
+      "bytes": 7810
+    },
+    "torch-ext/flash_sinkhorn/testing/test_pad_to_multiple.py": {
+      "mode": "100644",
+      "git_blob": "f5d36324a2256fefe5045f5b5b0c9bc25d96ec06",
+      "sha256": "56a86d1581a71afcaf851e006fd22487734b789743c5642907b2ca7453a1370c",
+      "bytes": 18255
+    },
+    "torch-ext/flash_sinkhorn/testing/test_samples_loss_api.py": {
+      "mode": "100644",
+      "git_blob": "454a915121b9f84f4ef0c11d622cd18db9ce9bba",
+      "sha256": "45ae7df151018b3f7d70ae1a0e898aa13b9b572a3c0bdd04a366e2f74b6a684a",
+      "bytes": 11024
+    },
+    "torch-ext/flash_sinkhorn/testing/test_samples_loss_tf32.py": {
+      "mode": "100644",
+      "git_blob": "b3af1b08aacca194c934ed7a45250a66323f6820",
+      "sha256": "2390353e6eb957ed9c2c55839c13c37eaf5d9ae415a005230e264d0b4ef1dc40",
+      "bytes": 10500
+    },
+    "torch-ext/flash_sinkhorn/testing/test_semi_unbalanced_forward.py": {
+      "mode": "100644",
+      "git_blob": "c81fc2dfaacecd21967ed23347eca4427fcbc40c",
+      "sha256": "844ae2fe71418704423c445542e1ad19d25e89aa771d89166719ada56ba22fb8",
+      "bytes": 5549
+    },
+    "torch-ext/flash_sinkhorn/testing/test_sinkhorn_triton.py": {
+      "mode": "100644",
+      "git_blob": "0de56378066074cad1a3d78b2fc5b3be6fda2795",
+      "sha256": "85d056db031e2206ba63f7f465b2a9a4a6ab6bc9b33051124ef381b0cee9a3db",
+      "bytes": 5439
+    },
+    "torch-ext/flash_sinkhorn/testing/test_unbalanced_reference.py": {
+      "mode": "100644",
+      "git_blob": "44ce4b4095304ac5dd978762f577f55733b4add5",
+      "sha256": "9d8839b8744c0e44d893660ff6cb53e252dca5cc1ff0c37bc1a3b20b685e82ec",
+      "bytes": 15146
+    },
+    "torch-ext/flash_sinkhorn/testing/test_unbalanced_sinkhorn.py": {
+      "mode": "100644",
+      "git_blob": "c1308d67306ae45e885435f0ac0ee89551c52a5b",
+      "sha256": "cde0f6d5e228357095e62dca676a3c91cefb315f04d7556811388df9bf33883a",
+      "bytes": 19299
+    }
+  }
+}
