@@ -1,0 +1,850 @@
+% Báo cáo độc lập, tập trung vào kết quả; không cần file dữ liệu hoặc .bib.
+% Biên dịch hai lần bằng pdfLaTeX, XeLaTeX hoặc LuaLaTeX.
+% Số liệu đã nhận tới 07/10/2026; biên tập rút gọn ngày 08/10/2026.
+\documentclass[11pt,a4paper]{article}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T5]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else
+  \usepackage{fontspec}
+  \setmainfont{TeX Gyre Termes}
+  \setsansfont{TeX Gyre Heros}
+  \setmonofont{Latin Modern Mono}
+\fi
+\usepackage[vietnamese]{babel}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,array,longtable,tabularx}
+\usepackage{xcolor,xurl}
+\usepackage[unicode,colorlinks=true,linkcolor=blue!55!black,
+  citecolor=blue!55!black,urlcolor=blue!55!black]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlength{\emergencystretch}{3em}
+\renewcommand{\arraystretch}{1.15}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\ACC}{\operatorname{ACC}}
+\newcommand{\MAP}{\operatorname{MAP}}
+\newcommand{\NR}{\textnormal{NR}}
+\newcommand{\SKIP}{\textnormal{SKIP}}
+\title{Báo cáo thực nghiệm sơ bộ\\
+  Tái triển khai FlashSinkhorn và đánh giá FlashOPW}
+\author{Dự án \texttt{flash-opw}}
+\date{Kết quả ghi nhận đến ngày 07 tháng 10 năm 2026}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+Báo cáo trình bày kết quả tám benchmark synthetic FlashSinkhorn trên RTX 5080
+và các nhóm đánh giá FlashOPW. FlashSinkhorn là bản tự triển khai theo paper;
+FlashOPW dùng công thức affine/Taylor của tài liệu main, còn đối chứng OPW
+journal giữ công thức và score riêng. Nhóm 1 có bằng chứng correctness và
+hội tụ trên pilot; nhóm 2 hoàn tất ablation; nhóm 3 hoàn tất tuning riêng
+từng phương pháp trên TRAIN. Chưa có kết quả official TEST đầy đủ và
+benchmark hiệu năng GPU cuối cùng cho nhóm 4--6 trong dữ liệu đã nhận.
+\end{abstract}
+\tableofcontents
+\newpage
+
+\section{Phạm vi và môi trường}
+Các solver FlashSinkhorn, FlashOPW và baseline OPW journal là bản tự triển
+khai, không phải code chính thức của tác giả. Kết quả hỗ trợ tính đúng trên
+các trường hợp đã kiểm tra; chưa xác nhận tái hiện đầy đủ thực nghiệm gốc.
+Benchmark GPU dùng RTX 5080 khoảng 16 GB; paper FlashSinkhorn dùng A100 80 GB.
+Các run OPW đã kiểm tra dùng PyTorch 2.11.0+cu128, Triton 3.6.0;
+reference CPU dùng FP64, Flash và dense GPU dùng FP32.
+
+Số liệu FlashSinkhorn được đọc từ log mean, chưa có raw repeats và môi trường
+đầy đủ của full run. Kết quả OPW nhóm 2--3 đã được kiểm tra lại từ các file
+kết quả; nhóm 1 GPU có log parity và bảng hội tụ, còn thiếu bộ file tổng kết
+để xác nhận numerical parity toàn matrix. Trạng thái nhóm 4--6 phản ánh
+thông tin đã nhận tới ngày 07/10/2026.
+
+\section{FlashSinkhorn: tám benchmark và đối chiếu paper}
+\label{sec:fs}
+\subsection{Cấu hình chung}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+Thành phần & Cấu hình chính \\
+\midrule
+Input & $X,Y\sim U([0,1]^d)$, $n=m$, uniform weights,
+  squared Euclidean cost, $\varepsilon=0.1$. \\
+Forward / F+B & 10 vòng cố định; TF32; symmetric và alternating;
+  10 warmup, 50/30 repeats. F+B gồm forward và backward. \\
+HVP & FP32; solve 100 vòng ngoài timing, CG 50 bước,
+  damping $10^{-5}$; 10 warmup, 20 repeats. \\
+Đo thời gian & Torch/KeOps dùng CUDA events; JAX dùng synchronized wall clock.
+  Tensorized precompute cost ngoài forward timing. \\
+Đo bộ nhớ & Peak PyTorch allocated sau warmup, gồm live tensors;
+  không trừ bộ nhớ nền và không đo tổng VRAM. \\
+\bottomrule
+\end{tabularx}
+
+Cấu hình toán học bám sát Appendix H.2 \cite{flashpaper}. JAX HVP dùng công
+thức OTT-Hessian với adapter CG, nên chưa đại diện timing implementation
+Lineax nguyên bản. Paper cũng mô tả số repeats HVP không nhất quán giữa
+H.2 và captions Tables 15--16. Validation GPU đã ghi nhận 133 tests đạt;
+benchmark full có 208 số đo, 12 memory skip và 8 ô HVP không được báo cáo.
+
+\textbf{Cách đọc bảng:} ô speedup $a/b$ ghi lần lượt RTX/paper, không phải
+phép chia hai số. Speedup là $t_{\rm baseline}/t_{\rm Flash}$; lớn hơn 1
+nghĩa là Flash nhanh hơn. KeOps/Tensorized forward và F+B chia cho Flash-sym,
+JAX chia cho Flash-alt; HVP chia cho Flash-sym. Ô in đậm đánh dấu đảo thứ tự
+nhanh/chậm so paper. \SKIP\ là bỏ trước theo memory estimate; \NR\ là không
+được báo cáo; NC là chưa có số paper tương ứng trong nguồn bảng được dùng.
+OOM/OOT là trạng thái của paper, không tự gán cho server. Số đo baseline
+đầy đủ nằm ở Phụ lục~\ref{app:fs-tables}.
+
+\subsection{Experiment 1: forward theo số điểm, $d=64$}
+$n=m=5000,10000,20000,30000,40000,50000$; đối chiếu Tables 8/10/12.
+% BEGIN FS COMPARE forward_n
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$n=m$ & \shortstack{Flash-sym\\ms} & \shortstack{Flash-alt\\ms} & \shortstack{KeOps speedup\\RTX/Paper} & \shortstack{Tensorized speedup\\RTX/Paper} & \shortstack{JAX speedup\\RTX/Paper} \\
+\midrule
+5000 & 2.259 & 2.182 & 18.98/14.70 & 11.11/3.30 & 4.03/1.90 \\
+10000 & 6.613 & 7.64 & 11.64/15.40 & 15.88/6.60 & 3.30/2.50 \\
+20000 & 24.337 & 26.502 & 11.22/9.40 & 17.34/8.10 & 3.12/3.60 \\
+30000 & 49.996 & 54.45 & 8.08/11.00 & \SKIP/OOM & 3.26/2.80 \\
+40000 & 88.538 & 89.333 & 8.99/8.30 & \SKIP/OOM & 3.44/3.60 \\
+50000 & 135.652 & 138.441 & 9.67/9.90 & \SKIP/OOM & 3.53/4.20 \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE forward_n
+Flash nhanh hơn mọi baseline có số đo trong sweep, cùng chiều với paper.
+Tensorized tại $n\geq30000$ bị preflight skip; paper ghi OOM.
+
+\subsection{Experiment 2: forward theo dimension, $n=m=20000$}
+$d=4,8,16,32,64,128,256,512,1024$; đối chiếu Tables 8/10/12.
+% BEGIN FS COMPARE forward_d
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$d$ & \shortstack{Flash-sym\\ms} & \shortstack{Flash-alt\\ms} & \shortstack{KeOps speedup\\RTX/Paper} & \shortstack{Tensorized speedup\\RTX/Paper} & \shortstack{JAX speedup\\RTX/Paper} \\
+\midrule
+4 & 13.477 & 11.842 & 2.27/1.60 & 31.32/9.90 & 5.95/3.20 \\
+8 & 13.455 & 11.806 & 3.30/2.60 & 31.37/9.90 & 6.07/3.30 \\
+16 & 13.545 & 11.81 & 5.67/4.20 & 31.16/12.30 & 6.20/3.60 \\
+32 & 13.508 & 11.85 & 10.63/9.70 & 31.25/10.50 & 6.44/4.30 \\
+64 & 24.503 & 26.387 & 11.08/9.40 & 17.23/8.10 & 3.12/3.60 \\
+128 & 45.02 & 47.333 & 9.72/10.80 & 9.38/4.60 & 2.19/3.00 \\
+256 & 120.886 & 126.721 & 10.06/19.30 & 3.49/3.00 & 1.13/2.40 \\
+512 & 238.024 & 240.36 & 9.89/17.60 & 1.77/1.70 & \textbf{0.96/1.60} \\
+1024 & 468.222 & 473.183 & 9.97/14.40 & 0.90/0.70 & 1.01/1.20 \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE forward_d
+JAX nhanh hơn Flash-alt tại $d=512$, trái chiều paper. Tại $d=1024$,
+Tensorized nhanh hơn Flash-sym ở cả hai phép đo.
+
+\subsection{Experiment 3: forward cộng backward theo số điểm, $d=64$}
+Cùng sáu kích thước của experiment 1; đối chiếu Tables 9/11/13.
+% BEGIN FS COMPARE backward_n
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$n=m$ & \shortstack{Flash-sym\\ms} & \shortstack{Flash-alt\\ms} & \shortstack{KeOps speedup\\RTX/Paper} & \shortstack{Tensorized speedup\\RTX/Paper} & \shortstack{JAX speedup\\RTX/Paper} \\
+\midrule
+5000 & 3.835 & 3.254 & 13.25/15.00 & 8.32/3.60 & 2.82/2.70 \\
+10000 & 8.21 & 9.212 & 11.00/12.30 & 16.11/5.60 & 3.16/2.90 \\
+20000 & 28.502 & 30.628 & 11.07/8.50 & 18.62/7.90 & 3.07/3.60 \\
+30000 & 58.154 & 62.554 & 8.08/10.30 & \SKIP/OOM & 3.26/3.70 \\
+40000 & 101.63 & 102.717 & 9.02/8.90 & \SKIP/OOM & 3.48/4.20 \\
+50000 & 155.901 & 160.041 & 9.68/10.50 & \SKIP/OOM & 4.03/4.00 \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE backward_n
+Flash giữ lợi thế trước các baseline có số đo, cùng chiều với paper.
+
+\subsection{Experiment 4: forward cộng backward theo dimension, $n=m=20000$}
+Cùng chín dimension của experiment 2; đối chiếu Tables 9/11/13.
+% BEGIN FS COMPARE backward_d
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$d$ & \shortstack{Flash-sym\\ms} & \shortstack{Flash-alt\\ms} & \shortstack{KeOps speedup\\RTX/Paper} & \shortstack{Tensorized speedup\\RTX/Paper} & \shortstack{JAX speedup\\RTX/Paper} \\
+\midrule
+4 & 15.632 & 13.957 & 2.31/1.50 & 33.92/10.60 & 5.82/3.70 \\
+8 & 15.596 & 13.926 & 3.31/2.60 & 33.99/10.70 & 5.75/3.90 \\
+16 & 15.573 & 13.92 & 5.67/4.10 & 34.04/12.80 & 5.83/4.80 \\
+32 & 15.602 & 14.097 & 10.58/9.70 & 33.99/11.50 & 6.05/4.70 \\
+64 & 28.051 & 30.061 & 11.10/8.50 & 18.91/7.90 & 3.07/3.60 \\
+128 & 51.968 & 54.245 & 11.15/11.50 & 10.22/4.90 & 2.11/2.70 \\
+256 & 135.281 & 141.095 & 19.84/33.30 & 3.95/3.10 & 1.16/2.20 \\
+512 & 273.385 & 275.735 & 62.52/OOT & 1.98/1.40 & \textbf{0.95/1.80} \\
+1024 & 538.959 & 544.009 & 132.49/OOT & \textbf{1.03/0.90} & \textbf{0.97/1.10} \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE backward_d
+JAX nhanh hơn Flash-alt tại $d=512,1024$, trái chiều paper.
+Tensorized/Flash-sym tại $d=1024$ cũng đảo chiều quanh speedup 1;
+chênh nhỏ cần raw samples để xác nhận độ ổn định.
+
+\subsection{Experiment 5: bộ nhớ forward theo số điểm, $d=1024$}
+Cùng sáu kích thước của experiment 1; đối chiếu Figure 3.
+% BEGIN FS COMPARE memory_forward
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$n=m$ & Flash-alt MB & Tensorized MB & Tensorized/Flash \\
+\midrule
+5000 & 95.314 & 428.307 & 4.49 \\
+10000 & 174.08 & 1370.148 & 7.87 \\
+20000 & 325.714 & 5187.666 & 15.93 \\
+30000 & 482.607 & \SKIP & -- \\
+40000 & 634.388 & \SKIP & -- \\
+50000 & 787.202 & \SKIP & -- \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE memory_forward
+Log-log slope là 0.918 cho Flash và 1.799 cho Tensorized. Xu hướng tăng
+gần tuyến tính của Flash phù hợp paper; chưa có bảng MB paper cùng setting
+để đối chiếu chính xác từng điểm.
+
+\subsection{Experiment 6: bộ nhớ forward cộng backward, $d=1024$}
+Cùng sweep và cách đo experiment 5; đối chiếu Figure 3.
+% BEGIN FS COMPARE memory_backward
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$n=m$ & Flash-alt MB & Tensorized MB & Tensorized/Flash \\
+\midrule
+5000 & 101.008 & 562.464 & 5.57 \\
+10000 & 184.974 & 2104.03 & 11.37 \\
+20000 & 345.042 & 8182.158 & 23.71 \\
+30000 & 512.45 & \SKIP & -- \\
+40000 & 673.041 & \SKIP & -- \\
+50000 & 839.925 & \SKIP & -- \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE memory_backward
+Slope là 0.920 cho Flash và 1.931 cho Tensorized. Tại $n=20000$,
+peak allocation của Tensorized bằng khoảng 23.71 lần Flash.
+
+\subsection{Experiment 7: HVP theo số điểm, $d=64$}
+$n=m=5000,6000,7000,8000,9000,10000,20000,30000,40000,50000$;
+đối chiếu Tables 15/16 và Section 4.1.
+% BEGIN FS COMPARE hvp_n
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$n=m$ & \shortstack{Flash-sym\\ms} & \shortstack{KeOps\\ms} & \shortstack{JAX\\ms} & \shortstack{KeOps speedup\\RTX/Paper} & \shortstack{JAX speedup\\RTX/Paper} \\
+\midrule
+5000 & 65.31 & 193.927 & 290.295 & 2.97/6.10 & 4.44/3.70 \\
+6000 & 100.726 & 216.518 & 409.974 & 2.15/6.20 & 4.07/4.50 \\
+7000 & 127.179 & 237.857 & 566.703 & 1.87/4.20 & 4.46/3.60 \\
+8000 & 153.503 & 264.787 & 698.838 & 1.72/4.20 & 4.55/3.90 \\
+9000 & 199.077 & 292.444 & 1056.555 & 1.47/4.10 & 5.31/4.20 \\
+10000 & 236.438 & 315.049 & 1289.244 & 1.33/4.00 & 5.45/4.60 \\
+20000 & 912.952 & 931.432 & \NR & 1.02/NC & \NR/NC \\
+30000 & 2032.442 & 1454.346 & \NR & 0.72/NC & \NR/NC \\
+40000 & 3532.364 & 2745.119 & \NR & 0.78/NC & \NR/NC \\
+50000 & 5337.679 & 4412.484 & \NR & \textbf{0.83/3.45}$^{*}$ & \NR/NC \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE hvp_n
+KeOps nhanh hơn Flash tại $n\geq30000$ trong reproduction. Tại $n=50000$,
+quan hệ đảo chiều so paper; ô có dấu $^{*}$ dùng tỷ số 14.5 s/4.2 s
+của Section 4.1. JAX $n>10000$ không được báo cáo trong run.
+
+\subsection{Experiment 8: HVP theo dimension, $n=m=10000$}
+$d=4,8,16,32,64,128,256,512$; đối chiếu Tables 15/16.
+% BEGIN FS COMPARE hvp_d
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$d$ & \shortstack{Flash-sym\\ms} & \shortstack{KeOps\\ms} & \shortstack{JAX\\ms} & \shortstack{KeOps speedup\\RTX/Paper} & \shortstack{JAX speedup\\RTX/Paper} \\
+\midrule
+4 & 77.987 & 124.908 & 151.746 & \textbf{1.60/0.70} & 1.95/1.50 \\
+8 & 78.009 & 133.39 & 169.775 & 1.71/1.00 & 2.18/1.60 \\
+16 & 78.061 & 159.214 & 230.08 & 2.04/2.00 & 2.95/2.20 \\
+32 & 78.56 & 207.22 & 450.829 & 2.64/3.80 & 5.74/3.60 \\
+64 & 236.456 & 314.645 & 1289.259 & 1.33/4.00 & 5.45/4.60 \\
+128 & 619.745 & 761.873 & 4528.709 & 1.23/17.00 & 7.31/7.00 \\
+256 & 972.212 & \NR & \NR & \NR/OOT & \NR/OOT \\
+512 & 2107.318 & \NR & \NR & \NR/OOT & \NR/OOT \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE hvp_d
+Tại $d=4$, Flash nhanh hơn KeOps, trái chiều paper. KeOps/Flash tại $d=128$
+chỉ khoảng 1.23, thấp hơn nhiều so paper. Baseline $d=256,512$ không được
+chạy trong phạm vi runner, không phải OOT thực đo trên RTX.
+
+\subsection{Runtime tuyệt đối và kết luận}
+Đối chiếu cùng shape với Table 18 cho forward và Section 4.1 cho HVP.
+RTX và A100 khác hardware; không dựng runtime baseline paper bằng cách ghép
+speedup và runtime từ những phép đo khác nhau.
+% BEGIN FS COMPARE absolute
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}rrlrrl@{}}
+\toprule
+$n=m$ & $d$ & Method & RTX ms & Paper ms & Paper source \\
+\midrule
+10000 & 64 & flash-sym & 6.613 & 14.0 & Table 18 \\
+10000 & 64 & flash-alt & 7.64 & 17.2 & Table 18 \\
+20000 & 64 & flash-sym & 24.337 & 37.4 & Table 18 \\
+20000 & 64 & flash-alt & 26.502 & 39.6 & Table 18 \\
+50000 & 64 & flash-sym & 135.652 & 188.1 & Table 18 \\
+50000 & 64 & flash-alt & 138.441 & 192.2 & Table 18 \\
+20000 & 1024 & flash-sym & 468.222 & 377.5 & Table 18 \\
+20000 & 1024 & flash-alt & 473.183 & 303.7 & Table 18 \\
+50000 & 64 & flash-sym & 5337.679 & 4200 & Section 4.1 \\
+50000 & 64 & keops & 4412.484 & 14500 & Section 4.1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+% END FS COMPARE absolute
+Reproduction giữ nhiều lợi thế forward/F+B và memory scaling, nhưng chưa
+tái hiện toàn bộ thứ hạng và speedup paper. Chưa đủ bằng chứng xác định
+riêng ảnh hưởng của GPU, baseline implementation và cơ chế đo.
+
+\section{FlashOPW: phương pháp và cấu hình chung}
+\label{sec:opw-method}
+Đặt $D_{ij}=\|x_i-y_j\|^2$, $R_{ij}=(i/N-j/M)^2$,
+$\ell^2(i,j)=R_{ij}/(N^{-2}+M^{-2})$. Hai công thức \cite{mainpdf,journalpdf}:
+\begin{align}
+C^{\rm main}_{ij}&=D_{ij}+\mu R_{ij}+q_0,
+&\mu&=\lambda_1+\frac{\lambda_2}{2\sigma^2},\\
+C^{\rm journal}_{ij}&=D_{ij}-\frac{\lambda_1}{1+R_{ij}}
++\lambda_2\left[\frac{\ell^2(i,j)}{2\sigma^2}
++\log(\sigma\sqrt{2\pi})\right],
+&q_0&=\lambda_2\log(\sigma\sqrt{2\pi})-\lambda_1.
+\end{align}
+$\mu$ là hệ số suy ra, không phải siêu tham số độc lập. Main dùng score
+Eq.19 $\langle a,f\rangle+\langle b,g\rangle-\lambda_2+q_0$;
+journal dùng $\langle P,D\rangle$. Dense affine là reference của main,
+không phải OPW journal. Hai định nghĩa prior có đơn vị sigma khác nhau.
+
+Dữ liệu chính: FacesUCR, TRAIN 200, TEST 2050, 14 lớp,
+chuỗi dài 131, $d=1$; giữ giá trị và độ dài gốc, uniform weights,
+cost scale 1. Nhóm 1--3 dùng cùng input làm tròn FP32 cho reference CPU
+FP64 và GPU FP32. Nhóm accuracy cập nhật $f$ rồi $g$.
+Gallery là tập mẫu đối chiếu, query là mẫu cần dự đoán.
+ACC@k dùng majority vote từ k hàng xóm; MAP tính toàn ranking,
+coi các mẫu cùng lớp là relevant. NN agreement đo sự đồng ý giữa hai backend,
+không phải accuracy theo nhãn thật.
+
+\section{Các pilot FlashOPW ban đầu}
+\subsection{Parity CPU/GPU và pilot k-NN}
+Cùng 32 TRAIN gallery, 16 TEST query, 512 cặp; tham số
+$(\lambda_1,\lambda_2,\sigma)=(1,0.1,1)$.
+CPU pilot so main/affine ở 20 vòng; GPU pilot so ở 200 vòng với FP64 reference.
+Journal OPW dùng 20 vòng, các entropic baseline còn lại dùng 100 vòng.
+\begin{center}\small
+\begin{tabular}{@{}llrr@{}}
+\toprule
+Pilot & Phương pháp & MAP\% & ACC@1\% \\
+\midrule
+CPU & Main / dense affine, 20 vòng & 68.329 & 62.50 \\
+CPU & TLp & 82.482 & 81.25 \\
+CPU & OPW / OPW-KL journal & 84.034 & 93.75 \\
+GPU & Main / dense affine reference, 200 vòng & 68.449 & 62.50 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Main/affine GPU có max score error $9.58348\cdot10^{-8}$ so FP64;
+ranking và predictions trùng. Distance-matrix time Flash 13.1206 s,
+dense CPU 101.7103 s: tỷ số 7.75 khác backend/precision và chưa kiểm soát tải,
+không coi là same-GPU speedup. Các fixed-iteration pilot chưa thống nhất
+mức hội tụ, nên không dùng để kết luận ưu thế cuối cùng giữa các phương pháp.
+
+\subsection{Đối chứng Taylor, prior và score trên pilot}
+CPU FP64 trên cùng 512 cặp, $(1,0.1,1)$; thay từng yếu tố:
+\begin{center}\small
+\begin{tabular}{@{}llllrr@{}}
+\toprule
+Order & Prior & Score & Vòng & MAP\% & ACC@1\% \\
+\midrule
+Taylor & relative & Eq.19 & 200 & 68.449 & 62.50 \\
+Exact & relative & cùng quy ước potentials & 200 & 69.576 & 62.50 \\
+Exact & journal & cùng quy ước potentials & 200 & 78.199 & 87.50 \\
+Exact & journal & $\langle P,D\rangle$ & 200 & 83.375 & 87.50 \\
+Exact & journal & $\langle P,D\rangle$ & 20 & 84.034 & 93.75 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Chênh lệch phụ thuộc đường đối chứng, không phải phân rã nhân quả duy nhất.
+Pilot TEST đã được xem trong phát triển; không gọi toàn quá trình là blind TEST.
+
+\subsection{Tuning Flash-only ban đầu}
+TRAIN holdout 28 gallery/14 query, thử ba hệ số suy ra $\mu=1.05,50,430$,
+giữ $\lambda_1=1,\lambda_2=0.1$, 200 vòng; chọn ACC@1 rồi MAP.
+Bộ được chọn có $\sigma\approx0.0319438$ ($\mu=50$).
+Trên subset TEST 32 gallery/28 query, kết quả cuối của lượt fixed 200 vòng:
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Cấu hình & MAP\% & ACC@1\% & Max residual \\
+\midrule
+Default & 59.854 & 53.571 & $6.432\cdot10^{-4}$ \\
+Selected & 81.986 & 92.857 & $1.185\cdot10^{-2}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+Selected cải thiện accuracy trên subset nhưng chưa đạt residual $10^{-3}$
+cho mọi cặp. Kết quả này không thay tuning riêng từng phương pháp ở nhóm 3.
+
+\section{Nhóm 1: correctness và hội tụ}
+\label{sec:g1}
+\textbf{Setting chính:} TRAIN pilot 16 gallery/14 query, 224 cặp;
+default $(1,0.1,1)$ và selected Flash $(1,0.1,0.0319438)$.
+So Flash IEEE FP32 với explicit-cost CPU FP64 ở cùng số vòng;
+kiểm tra score, spatial cost, $P$ và $P@[1,Y]$ trên sáu shape synthetic
+và các cặp TRAIN. Ngưỡng relative L2 của $P$/apply là $5\cdot10^{-3}$.
+
+\textbf{Kết quả cuối:} CPU 52/52 parity checks đạt; log GPU 40/40 đạt.
+Max relative L2 của $P$ GPU là $3.26\cdot10^{-6}$ với default và
+$4.14\cdot10^{-5}$ với selected. Cả 12 score matrices có NN agreement
+100\% với FP64 tại cùng số vòng. Kết quả hội tụ GPU cuối lượt 2000 vòng:
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Cấu hình & Max residual & Cặp đạt $10^{-3}$ & Cặp đạt $10^{-4}$ \\
+\midrule
+Default & $1.92\cdot10^{-5}$ & 224/224 & 224/224 \\
+Selected Flash & $7.32\cdot10^{-5}$ & 224/224 & 224/224 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Residual là $\max(\|P\mathbf1-a\|_1,\|P^\top\mathbf1-b\|_1)$.
+Kết quả hỗ trợ correctness và đạt hai ngưỡng trên pilot;
+NN agreement không chứng minh ACC 100\% hay numerical parity toàn matrix.
+Còn thiếu file tổng kết GPU để đóng kiểm chứng toàn matrix. Nhóm này không đo tốc độ.
+
+\section{Nhóm 2: ablation Taylor, prior và score}
+\label{sec:g2}
+\textbf{Setting chính:} cùng TRAIN pilot 224 cặp; giữ hai bộ tham số nhóm 1.
+Ba cost: affine, exact relative và exact journal. Với mỗi kết quả $P$,
+tính ba score mà không giải lại: Eq.19-style, spatial $\langle P,D\rangle$
+và affine $\langle P,D+\mu R\rangle$. Bảng chính dùng residual stop
+$r\leq10^{-3}$, tối đa 4000 vòng. Affine chạy Flash FP32; exact chạy dense GPU FP32.
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Model & Potentials MAP/ACC\% & Spatial MAP/ACC\% & Affine MAP/ACC\% \\
+\midrule
+Affine default & 63.770 / 57.143 & 54.924 / 35.714 & 64.290 / 57.143 \\
+Affine tuned & 72.058 / 64.286 & 73.214 / 64.286 & 72.692 / 64.286 \\
+Exact relative default & 64.335 / 57.143 & 54.860 / 35.714 & 64.335 / 57.143 \\
+Exact relative tuned & 72.058 / 64.286 & 73.214 / 64.286 & 72.692 / 64.286 \\
+Exact journal preset & 60.156 / 42.857 & 77.289 / 71.429 & 77.289 / 71.429 \\
+Exact journal, sigma Flash & 50.950 / 42.857 & 50.950 / 42.857 & 50.950 / 42.857 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Mỗi ô là MAP\% / ACC@1\%. Cả 224 cặp của sáu model đạt ngưỡng,
+không có capped pair. Kết quả đã được kiểm tra lại; ranking CPU/GPU trùng
+trong toàn bộ 54 phép so lưu của ablation.
+
+Taylor/exact relative ở cấu hình selected giữ cùng MAP/ACC cho cả ba score,
+dù $P$ khác tối đa khoảng 1.040\%; không suy ra Taylor vô hại trên mọi dữ liệu.
+Giữ cùng $P$ của journal preset, đổi Eq.19-style sang spatial tăng ACC
+từ 42.857\% lên 71.429\%, cho thấy score ảnh hưởng rõ đến kết quả.
+
+\textbf{Giới hạn phép so:} ``sigma Flash'' là sigma chọn cho Flash relative
+được đưa sang journal, không phải tuning riêng cho journal. Khác đơn vị prior
+làm cùng giá trị sigma có độ mạnh khác nhau; kết quả thấp của hàng này
+không chứng minh journal kém hơn sau tuning. Eq.19-style ở exact chỉ là
+score đối chứng; affine score không phải total cost journal.
+Nhóm 2 là ablation TRAIN pilot, không phải benchmark tốc độ hay so TEST cuối cùng.
+
+\section{Nhóm 3: tuning riêng từng phương pháp trên TRAIN}
+\label{sec:g3}
+\textbf{Setting chính:} ba stratified TRAIN holdout, mỗi split 28 gallery/28 query
+không giao nhau. Bảy phương pháp có tuning thử sáu candidate mỗi phương pháp;
+DTW/LDTW/NDTW/OT giữ một cấu hình. Hoàn tất 138 job, 108192 cặp.
+Chọn mean ACC@1, MAP phá hòa; candidate có cặp chưa đạt residual $10^{-3}$
+tại cap 4000 bị loại. Mỗi phương pháp giữ score riêng, không đổi theo TEST.
+Flash/dense entropic dùng GPU FP32; DTW/Soft-DTW/OT dùng CPU FP64.
+% BEGIN GENERATED GROUP3 RESULTS
+\begingroup\small
+\begin{longtable}{@{}lrrrr@{}}
+\caption{Mean phần trăm (sample SD) trên ba split TRAIN; chưa phải TEST.}\label{tab:g3results}\\
+\toprule
+Metric & Preset ACC@1 & Preset MAP & Selected ACC@1 & Selected MAP \\
+\midrule
+\endfirsthead
+\toprule
+Metric & Preset ACC@1 & Preset MAP & Selected ACC@1 & Selected MAP \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+FlashOPW main & 58.333 (5.455) & 58.464 (5.594) & 79.762 (14.434) & 74.405 (7.329) \\
+DTW & 67.857 (7.143) & 65.688 (7.305) & 67.857 (7.143) & 65.688 (7.305) \\
+LDTW & 67.857 (7.143) & 65.688 (7.305) & 67.857 (7.143) & 65.688 (7.305) \\
+NDTW & 64.286 (6.186) & 61.321 (6.824) & 64.286 (6.186) & 61.321 (6.824) \\
+Soft-DTW & 72.619 (7.435) & 69.106 (7.646) & 78.571 (7.143) & 72.956 (5.695) \\
+OT & 41.667 (4.124) & 47.484 (3.464) & 41.667 (4.124) & 47.484 (3.464) \\
+Sinkhorn & 39.286 (3.571) & 47.527 (3.019) & 41.667 (2.062) & 47.268 (4.137) \\
+TLp & 80.952 (12.542) & 75.130 (8.109) & 80.952 (12.542) & 75.130 (8.109) \\
+OPW-KL & 77.381 (12.542)$^{*}$ & 72.899 (8.192)$^{*}$ & 76.190 (13.521) & 71.376 (7.876) \\
+TCOT & 35.714 (6.186) & 44.922 (4.825) & 46.429 (9.449) & 49.580 (5.957) \\
+OPW journal & 77.381 (12.542)$^{*}$ & 72.899 (8.192)$^{*}$ & 76.190 (13.521) & 71.397 (7.897) \\
+\end{longtable}
+\endgroup
+$^{*}$ Preset không đủ điều kiện freeze vì có cặp chưa đạt tau tại cap.
+
+\begingroup\small
+\begin{longtable}{@{}lp{.68\linewidth}@{}}
+\caption{Bộ tham số selected đã freeze; mọi metric cost scale bằng 1.}\label{tab:selected}\\
+\toprule
+Metric & Tham số \\
+\midrule
+\endfirsthead
+\toprule
+Metric & Tham số \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+FlashOPW main & $\lambda_1=1$, $\lambda_2=0.1$, $\sigma=0.03194382825$ \\
+DTW & Không có tham số tuning trong protocol này \\
+LDTW & Không có tham số tuning trong protocol này \\
+NDTW & Không có tham số tuning trong protocol này \\
+Soft-DTW & $\gamma=1$ \\
+OT & Không có tham số tuning trong protocol này \\
+Sinkhorn & $\varepsilon=0.01$ \\
+TLp & $w=50$, $\varepsilon=0.1$ \\
+OPW-KL & $\lambda_1=0$, $\lambda_2=0.3$, $\sigma=5$ \\
+TCOT & $\lambda=3$ \\
+OPW journal & $\lambda_1=1$, $\lambda_2=0.3$, $\sigma=5$ \\
+\end{longtable}
+\endgroup
+% END GENERATED GROUP3 RESULTS
+Selected entropic đạt ngưỡng trên toàn bộ 2352 cặp mỗi phương pháp;
+kết quả đã được kiểm tra lại từ matrices. FP64 verification trên 36 score
+selected có max absolute error $6.609\cdot10^{-5}$, riêng Flash
+$1.023\cdot10^{-6}$.
+
+Flash tăng 21.429 điểm ACC và 15.941 điểm MAP so preset trên cùng protocol.
+TLp cao hơn Flash 1.190 điểm ACC và 0.725 điểm MAP, tương ứng 68 so với
+67 dự đoán đúng trong 84 lượt validation. Ba split chỉ có 71 query khác nhau;
+độ biến động lớn, chưa kết luận ưu thế TEST hoặc statistical superiority.
+Ngân sách bằng số attempt, không bằng runtime; grid nhỏ không bảo đảm global optimum.
+
+\subsection{Đối chiếu FlashOPW main với OPW journal}
+Cùng ba TRAIN split và kết quả nhóm 3; mỗi phương pháp dùng tham số selected
+riêng và native score, không phải một lượt solve mới.
+\begin{center}\small
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+Profile & Method & ACC@1\% (SD) & MAP\% (SD) & Cặp vượt tau \\
+\midrule
+Preset & Flash main & 58.333 (5.455) & 58.464 (5.594) & 0 \\
+Preset & OPW journal & 77.381 (12.542) & 72.899 (8.192) & 1 \\
+Selected & Flash main & 79.762 (14.434) & 74.405 (7.329) & 0 \\
+Selected & OPW journal & 76.190 (13.521) & 71.397 (7.897) & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Sau tuning riêng, mean TRAIN của Flash cao hơn journal trong phép so này.
+Đây là kết quả sau search trên TRAIN, chưa chứng minh Flash tốt hơn trên official TEST.
+
+\section{Nhóm 4: official TEST --- chưa có kết quả đầy đủ}
+\label{sec:g4}
+\textbf{Setting chính:} toàn TRAIN gallery 200, TEST query 2050;
+11 phương pháp, preset và selected riêng đã freeze từ TRAIN,
+17 cấu hình duy nhất sau gộp cấu hình trùng. Mỗi cấu hình 410000 cặp.
+Giữ residual $10^{-3}$, cap 4000; ACC@1 chính, MAP toàn gallery.
+Phân tích dự kiến dùng paired query bootstrap và McNemar với Holm adjustment.
+
+Trong dữ liệu đã nhận, full TEST chưa hoàn tất và chưa có bảng kết quả
+cuối được kiểm tra đầy đủ. Không trình bày ACC/MAP/CI dự đoán hoặc kết quả
+một phần như kết quả cuối cùng.
+
+\section{Nhóm 5: speed/memory --- kết quả CPU sơ bộ}
+\label{sec:g5}
+\textbf{Setting chính:} synthetic sin trajectories với time warp và noise;
+$N=512,1024,2048$, $M=1.25N$, $d=1,13$, hai seed.
+Bốn phương pháp DTW/Soft-DTW/Sinkhorn/OPW, 48 case CPU FP64,
+1 warmup và 2 repeats. Sinkhorn 100 vòng; OPW 20 vòng với $(1,0.1,1)$.
+Deadline 45 s cho toàn process gồm startup, warmup và repeats.
+
+\textbf{Kết quả cuối:} 37/48 case hoàn tất, 11 timeout, không code failure;
+timing chi tiết ở Phụ lục~\ref{app:cpu-scaling}. Đây là kiểm tra chức năng/scaling,
+có tải CPU chia sẻ chưa kiểm soát. Chưa có same-GPU benchmark để kết luận
+speedup hoặc lợi thế memory FlashOPW; timeout không được dùng làm timing giả.
+
+\section{Nhóm 6: k-NN end-to-end --- kiểm tra pipeline}
+\label{sec:g6}
+\textbf{Setting chính:} tiny synthetic dataset, 6 gallery/4 query, $d=2$;
+CPU FP64, 5 vòng affine, k=1/3; kiểm tra default/selected và dense controls.
+\textbf{Kết quả cuối:} integration không failure; max score error
+$7.11\cdot10^{-15}$ với default, $8.88\cdot10^{-16}$ với selected,
+NN agreement 100\%. Kết quả chỉ xác nhận pipeline trên tiny dataset.
+Chưa có timing end-to-end đầy đủ cho transfer, distance matrix, ranking
+và tổng thời gian trên workload thực với tham số frozen.
+
+\section{Kết luận}
+FlashSinkhorn tự triển khai có bằng chứng correctness và tám benchmark GPU,
+nhưng chưa tái hiện toàn bộ speedup/thứ hạng của paper A100.
+FlashOPW có parity tốt với reference cùng công thức main trên pilot;
+ablation cho thấy prior và score cần được tách khỏi ảnh hưởng Taylor.
+Tuning riêng trên TRAIN cải thiện Flash so preset, nhưng chưa đủ kết luận
+ưu thế official TEST. Nhóm 4 cần kết quả full TEST; nhóm 5--6 cần benchmark
+GPU được kiểm soát tải và đo toàn pipeline.
+
+\appendix
+\clearpage
+\section{Toàn bộ số đo FlashSinkhorn}
+\label{app:fs-tables}
+Số liệu giữ precision console; backward nghĩa là forward cộng backward.
+Memory là peak PyTorch allocated gồm live tensors, không tổng VRAM.
+\SKIP\ là preflight skip; \NR\ là không được báo cáo, không phải số đo bằng 0.
+% BEGIN GENERATED FLASH TABLES
+\begingroup\small
+\begin{longtable}{@{}rrrrrrr@{}}
+\caption{Experiment 1: forward theo point count, d=64 (ms).}\label{tab:forward-n}\\
+\toprule
+$n=m$ & $d$ & Flash-sym & Flash-alt & KeOps & Tensorized & JAX \\
+\midrule
+\endfirsthead
+\toprule
+$n=m$ & $d$ & Flash-sym & Flash-alt & KeOps & Tensorized & JAX \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+5000 & 64 & 2.259 & 2.182 & 42.87 & 25.104 & 8.795 \\
+10000 & 64 & 6.613 & 7.64 & 76.98 & 105.038 & 25.182 \\
+20000 & 64 & 24.337 & 26.502 & 273.124 & 422.083 & 82.611 \\
+30000 & 64 & 49.996 & 54.45 & 404.046 & \SKIP & 177.591 \\
+40000 & 64 & 88.538 & 89.333 & 796.254 & \SKIP & 307.218 \\
+50000 & 64 & 135.652 & 138.441 & 1311.162 & \SKIP & 488.954 \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\begin{longtable}{@{}rrrrrrr@{}}
+\caption{Experiment 2: forward theo dimension, n=m=20000 (ms).}\label{tab:forward-d}\\
+\toprule
+$n=m$ & $d$ & Flash-sym & Flash-alt & KeOps & Tensorized & JAX \\
+\midrule
+\endfirsthead
+\toprule
+$n=m$ & $d$ & Flash-sym & Flash-alt & KeOps & Tensorized & JAX \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+20000 & 4 & 13.477 & 11.842 & 30.639 & 422.091 & 70.41 \\
+20000 & 8 & 13.455 & 11.806 & 44.369 & 422.065 & 71.62 \\
+20000 & 16 & 13.545 & 11.81 & 76.857 & 422.093 & 73.263 \\
+20000 & 32 & 13.508 & 11.85 & 143.585 & 422.075 & 76.313 \\
+20000 & 64 & 24.503 & 26.387 & 271.441 & 422.069 & 82.223 \\
+20000 & 128 & 45.02 & 47.333 & 437.425 & 422.071 & 103.432 \\
+20000 & 256 & 120.886 & 126.721 & 1216.58 & 422.093 & 143.678 \\
+20000 & 512 & 238.024 & 240.36 & 2354.527 & 422.098 & 231.932 \\
+20000 & 1024 & 468.222 & 473.183 & 4666.855 & 422.079 & 476.648 \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\begin{longtable}{@{}rrrrrrr@{}}
+\caption{Experiment 3: forward cộng backward theo point count, d=64 (ms).}\label{tab:backward-n}\\
+\toprule
+$n=m$ & $d$ & Flash-sym & Flash-alt & KeOps & Tensorized & JAX \\
+\midrule
+\endfirsthead
+\toprule
+$n=m$ & $d$ & Flash-sym & Flash-alt & KeOps & Tensorized & JAX \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+5000 & 64 & 3.835 & 3.254 & 50.804 & 31.924 & 9.188 \\
+10000 & 64 & 8.21 & 9.212 & 90.313 & 132.29 & 29.122 \\
+20000 & 64 & 28.502 & 30.628 & 315.469 & 530.739 & 93.925 \\
+30000 & 64 & 58.154 & 62.554 & 469.833 & \SKIP & 204.235 \\
+40000 & 64 & 101.63 & 102.717 & 916.931 & \SKIP & 357.857 \\
+50000 & 64 & 155.901 & 160.041 & 1508.521 & \SKIP & 644.525 \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\begin{longtable}{@{}rrrrrrr@{}}
+\caption{Experiment 4: forward cộng backward theo dimension, n=m=20000 (ms).}\label{tab:backward-d}\\
+\toprule
+$n=m$ & $d$ & Flash-sym & Flash-alt & KeOps & Tensorized & JAX \\
+\midrule
+\endfirsthead
+\toprule
+$n=m$ & $d$ & Flash-sym & Flash-alt & KeOps & Tensorized & JAX \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+20000 & 4 & 15.632 & 13.957 & 36.108 & 530.226 & 81.261 \\
+20000 & 8 & 15.596 & 13.926 & 51.648 & 530.158 & 80.077 \\
+20000 & 16 & 15.573 & 13.92 & 88.26 & 530.168 & 81.135 \\
+20000 & 32 & 15.602 & 14.097 & 165.044 & 530.321 & 85.342 \\
+20000 & 64 & 28.051 & 30.061 & 311.295 & 530.337 & 92.153 \\
+20000 & 128 & 51.968 & 54.245 & 579.294 & 530.987 & 114.291 \\
+20000 & 256 & 135.281 & 141.095 & 2683.626 & 534.058 & 163.367 \\
+20000 & 512 & 273.385 & 275.735 & 17091.415 & 541.533 & 262.419 \\
+20000 & 1024 & 538.959 & 544.009 & 71404.812 & 556.28 & 527.267 \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\begin{longtable}{@{}rrrr@{}}
+\caption{Experiment 5: peak PyTorch allocated forward, d=1024 (MB theo log).}\label{tab:memory-forward}\\
+\toprule
+$n=m$ & $d$ & Flash-alt & Tensorized \\
+\midrule
+\endfirsthead
+\toprule
+$n=m$ & $d$ & Flash-alt & Tensorized \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+5000 & 1024 & 95.314 & 428.307 \\
+10000 & 1024 & 174.08 & 1370.148 \\
+20000 & 1024 & 325.714 & 5187.666 \\
+30000 & 1024 & 482.607 & \SKIP \\
+40000 & 1024 & 634.388 & \SKIP \\
+50000 & 1024 & 787.202 & \SKIP \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\begin{longtable}{@{}rrrr@{}}
+\caption{Experiment 6: peak PyTorch allocated forward cộng backward, d=1024 (MB theo log).}\label{tab:memory-backward}\\
+\toprule
+$n=m$ & $d$ & Flash-alt & Tensorized \\
+\midrule
+\endfirsthead
+\toprule
+$n=m$ & $d$ & Flash-alt & Tensorized \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+5000 & 1024 & 101.008 & 562.464 \\
+10000 & 1024 & 184.974 & 2104.03 \\
+20000 & 1024 & 345.042 & 8182.158 \\
+30000 & 1024 & 512.45 & \SKIP \\
+40000 & 1024 & 673.041 & \SKIP \\
+50000 & 1024 & 839.925 & \SKIP \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\begin{longtable}{@{}rrrrr@{}}
+\caption{Experiment 7: HVP theo point count, d=64 (ms).}\label{tab:hvp-n}\\
+\toprule
+$n=m$ & $d$ & Flash-sym & KeOps & JAX \\
+\midrule
+\endfirsthead
+\toprule
+$n=m$ & $d$ & Flash-sym & KeOps & JAX \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+5000 & 64 & 65.31 & 193.927 & 290.295 \\
+6000 & 64 & 100.726 & 216.518 & 409.974 \\
+7000 & 64 & 127.179 & 237.857 & 566.703 \\
+8000 & 64 & 153.503 & 264.787 & 698.838 \\
+9000 & 64 & 199.077 & 292.444 & 1056.555 \\
+10000 & 64 & 236.438 & 315.049 & 1289.244 \\
+20000 & 64 & 912.952 & 931.432 & \NR \\
+30000 & 64 & 2032.442 & 1454.346 & \NR \\
+40000 & 64 & 3532.364 & 2745.119 & \NR \\
+50000 & 64 & 5337.679 & 4412.484 & \NR \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\begin{longtable}{@{}rrrrr@{}}
+\caption{Experiment 8: HVP theo dimension, n=m=10000 (ms).}\label{tab:hvp-d}\\
+\toprule
+$n=m$ & $d$ & Flash-sym & KeOps & JAX \\
+\midrule
+\endfirsthead
+\toprule
+$n=m$ & $d$ & Flash-sym & KeOps & JAX \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+10000 & 4 & 77.987 & 124.908 & 151.746 \\
+10000 & 8 & 78.009 & 133.39 & 169.775 \\
+10000 & 16 & 78.061 & 159.214 & 230.08 \\
+10000 & 32 & 78.56 & 207.22 & 450.829 \\
+10000 & 64 & 236.456 & 314.645 & 1289.259 \\
+10000 & 128 & 619.745 & 761.873 & 4528.709 \\
+10000 & 256 & 972.212 & \NR & \NR \\
+10000 & 512 & 2107.318 & \NR & \NR \\
+\end{longtable}
+\endgroup
+% END GENERATED FLASH TABLES
+
+\section{Số đo CPU scaling FlashOPW}
+\label{app:cpu-scaling}
+Median ms của hai repeats. TO là timeout 45 s cho toàn process,
+không phải latency một phép toán. Tải CPU chưa được kiểm soát;
+không dùng bảng này suy ra speedup Flash/GPU.
+% BEGIN GENERATED CPU SCALING
+\begingroup\small
+\begin{longtable}{@{}rrrrrrrr@{}}
+\caption{CPU scaling: median ms; TO = timeout.}\label{tab:cpu-scaling}\\
+\toprule
+$N$ & $M$ & $d$ & Seed & DTW & Soft-DTW & Sinkhorn & OPW \\
+\midrule\endfirsthead
+\toprule
+$N$ & $M$ & $d$ & Seed & DTW & Soft-DTW & Sinkhorn & OPW \\
+\midrule\endhead
+\bottomrule\endfoot
+512 & 640 & 1 & 42 & 3.714 & 20.042 & 3575.492 & 1974.366 \\
+512 & 640 & 1 & 43 & 11.636 & 53.967 & 5493.932 & 1677.869 \\
+512 & 640 & 13 & 42 & 10.550 & 32.628 & 6686.296 & 2424.992 \\
+512 & 640 & 13 & 43 & 4.929 & 20.112 & 4698.369 & 1245.474 \\
+1024 & 1280 & 1 & 42 & 27.023 & 89.335 & TO & 5794.937 \\
+1024 & 1280 & 1 & 43 & 12.667 & 97.638 & 13143.665 & 4024.380 \\
+1024 & 1280 & 13 & 42 & 35.884 & 151.147 & TO & 5578.916 \\
+1024 & 1280 & 13 & 43 & 32.729 & 147.522 & TO & 6315.981 \\
+2048 & 2560 & 1 & 42 & 79.946 & 535.837 & TO & TO \\
+2048 & 2560 & 1 & 43 & 56.821 & 345.675 & TO & TO \\
+2048 & 2560 & 13 & 42 & 111.559 & 475.469 & TO & TO \\
+2048 & 2560 & 13 & 43 & 120.620 & 871.089 & TO & TO \\
+\end{longtable}
+\endgroup
+% END GENERATED CPU SCALING
+
+\begin{thebibliography}{9}
+\bibitem{flashpaper}
+Felix X.-F. Ye, Xingjie Li, An Yu, Ming-Ching Chang, Linsong Chu,
+Davis Wertheimer.
+\emph{FlashSinkhorn: IO-Aware Entropic Optimal Transport on GPU}.
+arXiv:2602.03067v3, 2026.
+\url{https://arxiv.org/abs/2602.03067v3}.
+
+\bibitem{mainpdf}
+Tài liệu phương pháp FlashOPW do người dùng cung cấp:
+\code{main (2).pdf}, bản ngày 02/10/2026.
+
+\bibitem{journalpdf}
+Tài liệu OPW journal do người dùng cung cấp: \code{OWD_journal.pdf}.
+\end{thebibliography}
+\end{document}
