@@ -1,0 +1,64 @@
+{
+  "created_utc": "2026-10-08T02:59:34.310637+00:00",
+  "groups": {
+    "outputs/opw_group1_gpu_v1": {
+      "found": [
+        "summary.json",
+        "run_state.json",
+        "parity.json",
+        "environment.json",
+        "convergence.json",
+        "convergence.csv",
+        "reference_state.json",
+        "default_flash_20.npz",
+        "default_flash_100.npz",
+        "default_flash_200.npz",
+        "default_flash_500.npz",
+        "default_flash_1000.npz",
+        "default_flash_2000.npz",
+        "default_reference_20.npz",
+        "default_reference_100.npz",
+        "default_reference_200.npz",
+        "default_reference_500.npz",
+        "default_reference_1000.npz",
+        "default_reference_2000.npz",
+        "tuned_flash_20.npz",
+        "tuned_flash_100.npz",
+        "tuned_flash_200.npz",
+        "tuned_flash_500.npz",
+        "tuned_flash_1000.npz",
+        "tuned_flash_2000.npz",
+        "tuned_reference_20.npz",
+        "tuned_reference_100.npz",
+        "tuned_reference_200.npz",
+        "tuned_reference_500.npz",
+        "tuned_reference_1000.npz",
+        "tuned_reference_2000.npz"
+      ],
+      "missing": [],
+      "environment.json": {
+        "device": "cuda:0",
+        "gpu": "NVIDIA GeForce RTX 5080"
+      },
+      "summary.json": {
+        "status": "completed",
+        "flash_verification": "executed",
+        "parity_failures": 0
+      }
+    },
+    "outputs/paper_20261005T090633.880402Z": {
+      "found": [
+        "environment.json",
+        "paper_results.json",
+        "paper_results.csv",
+        "autotuning.json",
+        "diagnostics.json"
+      ],
+      "missing": [],
+      "environment.json": {
+        "device": "cuda:0",
+        "gpu": "NVIDIA GeForce RTX 5080"
+      }
+    }
+  }
+}

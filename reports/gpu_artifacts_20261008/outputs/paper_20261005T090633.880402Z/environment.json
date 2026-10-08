@@ -1,0 +1,168 @@
+{
+  "python": "3.14.8 | packaged by Anaconda, Inc. | (main, Oct  1 2026, 20:26:14) [GCC 14.3.0]",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "torch": "2.11.0+cu128",
+  "torch_cuda": "12.8",
+  "device": "cuda:0",
+  "cuda_visible_devices": "1",
+  "threads": 2,
+  "packages": {
+    "triton": "3.6.0",
+    "geomloss": "0.2.6",
+    "pykeops": "2.3",
+    "ott-jax": "0.5.1",
+    "jax": "0.8.2",
+    "jaxlib": "0.8.2"
+  },
+  "kernel_controls": {
+    "autotune": "1",
+    "vector_kernel": "1",
+    "gradient_kernel": "1"
+  },
+  "git_commit": "a4fcbbaac97dd86cbee729d40be03d47a2de7a6f",
+  "git_dirty": true,
+  "triton": "3.6.0",
+  "source_sha256": {
+    "flashopw/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+    "flashopw/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+    "flashopw/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+    "flashopw/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+    "experiments/paper_benchmarks.py": "e47140d6827daf3403c0ac59b332fac65e2003e6132d2ac31625c0f9e1971cad",
+    "experiments/ott_hessian.py": "3aebe4bf3c3a62f06e4b8b3f5ec097fbac574fe2e1c888ac84932c21d1f87707",
+    "experiments/jax_hvp.py": "07a7f7e793b4746e711b0dc2ad787d5aced3a89e7235eefb00dfa45561111dc1"
+  },
+  "gpu": "NVIDIA GeForce RTX 5080",
+  "capability": [
+    12,
+    0
+  ],
+  "gpu_total_bytes": 16620519424,
+  "gpu_free_bytes_at_start": 16325869568,
+  "nvidia_smi_at_start": "index, uuid, name, driver_version, temperature.gpu, clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], memory.total [MiB], memory.used [MiB]\n1, GPU-8b2fa5ef-ee41-05cc-18b6-11b78a252983, NVIDIA GeForce RTX 5080, 570.172.08, 39, 195 MHz, 14801 MHz, 11.16 W, 16303 MiB, 281 MiB",
+  "args": {
+    "experiments": [
+      "forward_n",
+      "forward_d",
+      "backward_n",
+      "backward_d",
+      "memory_forward",
+      "memory_backward",
+      "hvp_n",
+      "hvp_d"
+    ],
+    "methods": [
+      "flash-sym",
+      "flash-alt",
+      "keops",
+      "tensorized",
+      "jax"
+    ],
+    "n_sizes": [
+      5000,
+      10000,
+      20000,
+      30000,
+      40000,
+      50000
+    ],
+    "d_sizes": [
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024
+    ],
+    "hvp_n_sizes": [
+      5000,
+      6000,
+      7000,
+      8000,
+      9000,
+      10000,
+      20000,
+      30000,
+      40000,
+      50000
+    ],
+    "hvp_d_sizes": [
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "dimension_n": 20000,
+    "hvp_dimension_n": 10000,
+    "hvp_fixed_d": 64,
+    "hvp_baseline_max_n": 10000,
+    "hvp_keops_max_n": 50000,
+    "hvp_baseline_max_d": 128,
+    "epsilon": 0.1,
+    "iters": 10,
+    "hvp_sinkhorn_iters": 100,
+    "hvp_cg_iters": 50,
+    "hvp_damping": 1e-05,
+    "precision": "tf32",
+    "warmups": 10,
+    "forward_repeats": 50,
+    "backward_repeats": 30,
+    "hvp_repeats": 20,
+    "memory_fraction": 0.8,
+    "max_tensorized_mib": 12000,
+    "jax_batch_size": 256,
+    "jax_hvp_backend": "ott-hessian",
+    "ott_hessian_path": "outputs/third_party/OTT-Hessian",
+    "autotune": true,
+    "diagnostics": true,
+    "block_m": 64,
+    "block_n": 128,
+    "seed": 0,
+    "output": null
+  },
+  "protocol": {
+    "data": "independent uniform [0,1]^d point clouds; uniform marginals",
+    "cost": "full squared Euclidean",
+    "timing": "CUDA events for PyTorch/KeOps; synchronized wall clock for JAX",
+    "order": "large to small",
+    "backward": "source x only",
+    "hvp": "strict FP32; damping=1e-5; fixed 50-step CG by default",
+    "memory": "total PyTorch peak allocated, including live inputs",
+    "precision": "TF32 forward/backward; strict FP32 HVP by default",
+    "panel_methods": {
+      "memory_forward": [
+        "flash-alt",
+        "tensorized"
+      ],
+      "memory_backward": [
+        "flash-alt",
+        "tensorized"
+      ],
+      "hvp_n": [
+        "flash-sym",
+        "keops",
+        "jax"
+      ],
+      "hvp_d": [
+        "flash-sym",
+        "keops",
+        "jax"
+      ]
+    },
+    "hvp_baseline_range": {
+      "jax_max_n": 10000,
+      "keops_max_n": 50000,
+      "max_d": 128
+    },
+    "jax_hvp": "ott-hessian",
+    "jax_hvp_controls": "upstream HessianA/OTT geometry; shared coupling; guarded fixed-step CG adapter; tau2=Schur damping/epsilon",
+    "tensorized_forward": "dense squared-distance matrix precomputed and cached outside timing, matching the official benchmark",
+    "tiles": "bounded GPU autotuning in warmup"
+  }
+}

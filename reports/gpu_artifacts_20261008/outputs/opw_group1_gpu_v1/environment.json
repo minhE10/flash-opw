@@ -1,0 +1,320 @@
+{
+  "python": "3.14.8 | packaged by Anaconda, Inc. | (main, Oct  1 2026, 20:26:14) [GCC 14.3.0]",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "torch": "2.11.0+cu128",
+  "torch_cuda": "12.8",
+  "device": "cuda:0",
+  "cuda_visible_devices": "1",
+  "threads": 2,
+  "packages": {
+    "triton": "3.6.0",
+    "geomloss": "0.2.6",
+    "pykeops": "2.3",
+    "ott-jax": "0.5.1",
+    "jax": "0.8.2",
+    "jaxlib": "0.8.2",
+    "scipy": "1.17.1",
+    "numba": "0.65.1"
+  },
+  "kernel_controls": {
+    "autotune": "0",
+    "vector_kernel": "1",
+    "gradient_kernel": "1"
+  },
+  "git_commit": "64b948918d7979fc35802dc6abc7097dc4ded71e",
+  "git_dirty": true,
+  "triton": "3.6.0",
+  "source_sha256": {
+    "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+    "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+    "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+    "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+    "experiments/paper_benchmarks.py": "17cda8fd01fc3b4193f9c743e724636ddeca2d9f9f5435728816d72470440675",
+    "experiments/ott_hessian.py": "80949079f02c55862915df3a9faad250f5d721be666de33e8ce5f8562166d89f",
+    "experiments/jax_hvp.py": "03cab85ea0bf0b7d6f5c3923cd4086362957e087e3276bb5989ca7deac7a3b40"
+  },
+  "gpu": "NVIDIA GeForce RTX 5080",
+  "capability": [
+    12,
+    0
+  ],
+  "gpu_total_bytes": 16620519424,
+  "gpu_free_bytes_at_start": 608436224,
+  "nvidia_smi_at_start": "index, uuid, name, driver_version, temperature.gpu, clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], memory.total [MiB], memory.used [MiB]\n1, GPU-8b2fa5ef-ee41-05cc-18b6-11b78a252983, NVIDIA GeForce RTX 5080, 570.172.08, 53, 2880 MHz, 14801 MHz, 91.07 W, 16303 MiB, 15271 MiB",
+  "signature": {
+    "settings": {
+      "dataset": "FacesUCR",
+      "dataset_file": null,
+      "data_root": "data/opw",
+      "flash_parameters": "reports/opw_tuning_20261006/selected_parameters.json",
+      "profiles": [
+        "default",
+        "tuned"
+      ],
+      "gallery": 16,
+      "queries": 14,
+      "seed": 20261006,
+      "checkpoints": [
+        20,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "parity_iters": [
+        20,
+        200
+      ],
+      "parity_shapes": [
+        "7:11:3",
+        "37:79:65",
+        "131:131:1",
+        "257:513:13",
+        "17:29:390",
+        "1025:1537:1"
+      ],
+      "taus": [
+        0.001,
+        0.0001
+      ],
+      "reference_batch": 16,
+      "max_dense_entries": 4194304,
+      "score_rtol": 0.003,
+      "score_atol": 0.0003,
+      "plan_rtol": 0.005,
+      "device": "cuda",
+      "threads": 2,
+      "memory_fraction": 0.45
+    },
+    "profiles": {
+      "default": {
+        "lambda1": 1.0,
+        "lambda2": 0.1,
+        "sigma": 1,
+        "cost_scale": 1
+      },
+      "tuned": {
+        "lambda1": 1.0,
+        "lambda2": 0.1,
+        "sigma": 0.031943828249996996,
+        "cost_scale": 1
+      }
+    },
+    "selection": {
+      "schema": "flashopw-training-selection-v1",
+      "protocol": "stratified holdout within official training split only",
+      "dataset": "FacesUCR",
+      "training_sha256": "0a41a8b41d240c060ef1d5516dda64e343e5965634f1c021ab7eae36b6eafc1d",
+      "parameters": {
+        "lambda1": 1.0,
+        "lambda2": 0.1,
+        "sigma": 0.031943828249996996,
+        "cost_scale": 1,
+        "n_iters": 200
+      },
+      "score": "pdf-loss",
+      "n_iters": 200,
+      "selection_k": 1,
+      "objective": "ACC",
+      "selected_candidate": 1,
+      "validation": {
+        "candidate": 1,
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 0.031943828249996996,
+          "cost_scale": 1,
+          "n_iters": 200
+        },
+        "mu": 50.0,
+        "ACC": 0.8571428571428571,
+        "MAP": 0.742782060192498,
+        "seconds": 25.500726199999917,
+        "diagnostics": {
+          "max_marginal_l1": 0.012851309781577915,
+          "pairs": 392
+        }
+      },
+      "default_validation": {
+        "candidate": 0,
+        "parameters": {
+          "lambda1": 1.0,
+          "lambda2": 0.1,
+          "sigma": 1,
+          "cost_scale": 1,
+          "n_iters": 200
+        },
+        "mu": 1.05,
+        "ACC": 0.5714285714285714,
+        "MAP": 0.6081487028009585,
+        "seconds": 24.61294420000013,
+        "diagnostics": {
+          "max_marginal_l1": 0.0005308378427746887,
+          "pairs": 392
+        }
+      },
+      "gallery_indices": [
+        13,
+        17,
+        25,
+        27,
+        31,
+        33,
+        36,
+        49,
+        59,
+        61,
+        66,
+        67,
+        73,
+        78,
+        80,
+        87,
+        97,
+        102,
+        111,
+        116,
+        123,
+        125,
+        139,
+        154,
+        157,
+        170,
+        178,
+        185
+      ],
+      "validation_indices": [
+        2,
+        7,
+        24,
+        65,
+        71,
+        84,
+        86,
+        101,
+        106,
+        119,
+        126,
+        129,
+        148,
+        149
+      ],
+      "seed": 20261006,
+      "backend": "CPU FP64 batched dense oracle",
+      "search_source_sha256": {
+        "flashopw/__init__.py": "203330d0bc8c9b498565966c743331e5805dd1092f1208d7fbdfdb4191001b4a",
+        "flashopw/solver.py": "63fcaa0a030ebd661be71f8da996c7194527030a1b0ce3a083741fab4d016edc",
+        "flashsinkhorn/__init__.py": "25b175ded2b7d2bc2d11bcdab53b7b590229799b708c05fd684b1d84dc713eb5",
+        "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+        "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+        "flashsinkhorn/solver.py": "dfccef56f8845cffd48a2cb5a9a190332899b9f748f1105e4b0ab15a5023cabb",
+        "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+        "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+        "experiments/opw_parameters.py": "788c4bda2a4c8964d626cf45f21218b9793849161d2a6d0265794f2116a6b660",
+        "experiments/opw_tune.py": "5c34dae2e3b9f616ff926792653fe43a39140509673df4f64401dabc2105cf6b",
+        "experiments/opw_scaling.py": "a56ec96b111ebb48246f456f3db61b15237bb3f4145a664b9b75b392be66f367",
+        "experiments/opw_knn.py": "5e4be53c55120369d5ea1878332a9f0cab9a3222ba7651b9ef1f3dec44c70690",
+        "experiments/sequence_data.py": "2d37caf1050f56acb95e0b0d0696333880a242b7cff67edab67f6513d9b68d48",
+        "experiments/sequence_metrics.py": "9a68a223404d0df1688251a6963b4ef05bf86a17bd4865b96f77699ae5b32a12",
+        "experiments/retrieval.py": "45e4eb6ff444f20f87a714b01d67b1e909b1d4cf7f12b658f325f685b6927225",
+        "experiments/runtime.py": "c80b52c453f2cb3cfc37126fb4b1570107766bd93605199fa82442d178383dd5"
+      },
+      "limitation": "Validation selection does not guarantee higher test ACC/MAP; fixed iterations may leave marginal error"
+    },
+    "origin": {
+      "dataset": "FacesUCR",
+      "source_url": "https://zenodo.org/records/11191065",
+      "files": {
+        "FacesUCR_TRAIN.ts": "dda6897df22db05960b00a5147f53346774848bf86ccb4d918fde201eab7ad0f"
+      },
+      "preprocessing": "archive values unchanged; no resampling or feature normalization",
+      "training_sha256": "0a41a8b41d240c060ef1d5516dda64e343e5965634f1c021ab7eae36b6eafc1d",
+      "original_train": 200,
+      "features": 1
+    },
+    "gallery_indices": [
+      17,
+      25,
+      31,
+      36,
+      59,
+      66,
+      73,
+      80,
+      87,
+      97,
+      102,
+      123,
+      125,
+      139,
+      154,
+      157
+    ],
+    "query_indices": [
+      2,
+      7,
+      24,
+      65,
+      71,
+      84,
+      86,
+      101,
+      106,
+      119,
+      126,
+      129,
+      148,
+      149
+    ],
+    "input_sha256": "8830916a7bfe02eed15b97f2684db22b6e092a29918413148851f95a678ca227",
+    "sources": {
+      "flashopw/__init__.py": "203330d0bc8c9b498565966c743331e5805dd1092f1208d7fbdfdb4191001b4a",
+      "flashopw/solver.py": "63fcaa0a030ebd661be71f8da996c7194527030a1b0ce3a083741fab4d016edc",
+      "flashsinkhorn/__init__.py": "25b175ded2b7d2bc2d11bcdab53b7b590229799b708c05fd684b1d84dc713eb5",
+      "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+      "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+      "flashsinkhorn/solver.py": "dfccef56f8845cffd48a2cb5a9a190332899b9f748f1105e4b0ab15a5023cabb",
+      "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+      "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+      "experiments/opw_parameters.py": "3a9730fa6cd5dd7c0fd5de99e1992a748fcac5076e65ddb72e74456d91b71786",
+      "experiments/opw_tune.py": "5c34dae2e3b9f616ff926792653fe43a39140509673df4f64401dabc2105cf6b",
+      "experiments/opw_scaling.py": "7a50356f4511eee6ecbda88382ad14966122ee548553b70570ff994f668b1822",
+      "experiments/opw_knn.py": "055de47899df57e14f32ffb4cffceca1b70be7a68382b4fa3be4ea9ed9bfb5f1",
+      "experiments/sequence_data.py": "2d37caf1050f56acb95e0b0d0696333880a242b7cff67edab67f6513d9b68d48",
+      "experiments/sequence_metrics.py": "9a68a223404d0df1688251a6963b4ef05bf86a17bd4865b96f77699ae5b32a12",
+      "experiments/sequence_metrics_torch.py": "9aa6296cbb22220eb00cffe17d41d7f825486e30939964537f26adc69157e928",
+      "experiments/retrieval.py": "45e4eb6ff444f20f87a714b01d67b1e909b1d4cf7f12b658f325f685b6927225",
+      "experiments/runtime.py": "c80b52c453f2cb3cfc37126fb4b1570107766bd93605199fa82442d178383dd5",
+      "experiments/opw_group1.py": "208b3f78d81a1b3ed732c078d6f6e5b762929caae563cdd4e0ec2f451aae8142"
+    },
+    "torch": "2.11.0+cu128",
+    "packages": {
+      "triton": "3.6.0",
+      "geomloss": "0.2.6",
+      "pykeops": "2.3",
+      "ott-jax": "0.5.1",
+      "jax": "0.8.2",
+      "jaxlib": "0.8.2",
+      "scipy": "1.17.1",
+      "numba": "0.65.1"
+    },
+    "python": "3.14.8 | packaged by Anaconda, Inc. | (main, Oct  1 2026, 20:26:14) [GCC 14.3.0]",
+    "gpu": "NVIDIA GeForce RTX 5080",
+    "kernel_controls": {
+      "autotune": "0",
+      "vector_kernel": "1",
+      "gradient_kernel": "1"
+    }
+  },
+  "protocol": {
+    "cost": "explicit spatial squared distance + mu*(i/N-j/M)^2, main PDF; q0 restored only in score",
+    "input": "original TRAIN fingerprint checked, then quantized to FP32 identically for all backends; TEST unopened",
+    "iterations": "uniform, alternating f then g; diagnostic overrides frozen n_iters without mutating selection",
+    "cpu_scope": "dense FP32 and small tiled FP64 parity, plus FP64 reference convergence; not Flash CUDA evidence",
+    "cuda_scope": "Flash FP32 IEEE versus explicit CPU FP64 at identical iterations, including score-matrix parity",
+    "gap": "primal_minus_dual not a certified gap when marginals infeasible",
+    "checkpoints": "reference incremental; Flash restarted at each fixed checkpoint; not a speed benchmark",
+    "resume": "parity cases, completed reference profiles and complete GPU query rows checkpointed"
+  }
+}
