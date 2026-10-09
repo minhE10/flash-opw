@@ -376,3 +376,12 @@ full mới. Còn một warning early stopping chưa xác nhận hội tụ trong
 nhật ở fixture tương ứng; ba skip OTT-Hessian vẫn chưa được kiểm chứng.
 ZIP đã lưu local cùng audit rồi được gỡ khỏi repo theo quy trình chuyển file.
 Chi tiết và SHA-256 nằm trong báo cáo audit được liên kết ở trên.
+
+### Kế hoạch sáu bước và thực thi bước 1–2
+
+Xem [kế hoạch kiểm tra](flash_sinkhorn_author_validation_plan.md) để theo dõi
+sáu bước và tiêu chí hoàn tất. `scripts/run_author_steps12.py` chạy nguyên test
+HVP với checkout OTT-Hessian public đã ghim hash, rồi đo marginal/FP64 cho đúng
+fixture early stopping. Runner giữ nguyên API test, kernel và tolerance; không
+alias `HessianALineax` sang hàm khác. Cả hai bước lưu chung một ZIP có checksum
+để chuyển bằng quy trình Git đã thống nhất. Kết quả GPU của runner này còn chờ.

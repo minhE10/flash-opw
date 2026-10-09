@@ -38,6 +38,7 @@ def main() -> int:
     parser.add_argument("--gpu", action="store_true")
     parser.add_argument("--suite", choices=("core", "full", "regressions", "cg"), default="core")
     parser.add_argument("--test-file", help="Run one pinned test_*.py file from the full suite in an isolated process.")
+    parser.add_argument("--ott-hessian-root", type=Path, help="Verified external public baseline; enables original HVP imports without editing author trees.")
     parser.add_argument("--hvp-max-cg-iter", type=int,
                         help="Increase only the 64-step double-backward fixture budget and require CG convergence on both paths.")
     parser.add_argument("--kernel-profile", choices=("upstream", "rtx5080"), default="upstream",
@@ -84,6 +85,13 @@ def main() -> int:
     print(f"Validation output: {output}", flush=True)
     print("[source] Verifying pinned author files and read-only reference...", flush=True)
     summary["source"] = verify(implementation_only=args.implementation_only)
+    if args.ott_hessian_root is not None:
+        from author_ott_hessian import inspect as inspect_dependency
+        summary["ott_hessian"] = inspect_dependency(args.ott_hessian_root)
+        if summary["ott_hessian"]["status"] != "verified":
+            summary["status"] = "failed"
+            save()
+            return 1
     save()
     if summary["source"]["status"] != "verified":
         summary["status"] = "failed"
@@ -134,6 +142,10 @@ def main() -> int:
     env["PYTHONPATH"] = str(implementation / "torch-ext")
     if args.hvp_max_cg_iter is not None:
         env["PYTHONPATH"] += os.pathsep + str(ROOT / "scripts")
+    if args.ott_hessian_root is not None:
+        env["PYTHONPATH"] += os.pathsep + str(ROOT / "scripts") + os.pathsep + str(args.ott_hessian_root.resolve())
+        env["AUTHOR_OTT_HESSIAN_ROOT"] = str(args.ott_hessian_root.resolve())
+        env["AUTHOR_OTT_HESSIAN_REPORT"] = str(output / "external-hvp.json")
     env.setdefault("OMP_NUM_THREADS", "2")
     env.setdefault("MKL_NUM_THREADS", "2")
     env.setdefault("OPENBLAS_NUM_THREADS", "2")
@@ -215,6 +227,8 @@ raise SystemExit(pytest.main(sys.argv[1:]))
     if args.hvp_max_cg_iter is not None:
         command.extend(["-p", "author_hvp_cg_check", "--author-hvp-max-cg-iter", str(args.hvp_max_cg_iter),
                         "--author-cg-report", str(output / "cg_convergence.json")])
+    if args.ott_hessian_root is not None:
+        command.extend(["-p", "author_ott_hessian_check"])
     summary["gpu_status"] = "running"
     summary["phase"] = "running_tests"
     summary["test_files"] = [str(path.relative_to(implementation)) for path in tests]
@@ -234,6 +248,8 @@ raise SystemExit(pytest.main(sys.argv[1:]))
     save()
     print("[source] Checking source hashes after tests...", flush=True)
     summary["source_after_tests"] = verify()
+    if args.ott_hessian_root is not None:
+        summary["ott_hessian_after_tests"] = inspect_dependency(args.ott_hessian_root)
     if args.kernel_profile != "upstream":
         summary["profile_after_tests"] = verify_profile(implementation)
     if report.exists():
@@ -254,6 +270,12 @@ raise SystemExit(pytest.main(sys.argv[1:]))
         summary["tests"] = {"total": 0, "passed": 0, "failed": 0, "errors": 0, "skipped": 0}
     passed = summary.get("tests", {}).get("passed", 0)
     ok = returncode == 0 and passed > 0 and summary["source_after_tests"]["status"] == "verified"
+    if args.ott_hessian_root is not None:
+        ok = ok and summary["ott_hessian_after_tests"]["status"] == "verified"
+        diagnostics = output / "external-hvp.json"
+        summary["external_hvp"] = json.loads(diagnostics.read_text()) if diagnostics.exists() else []
+        if any(r["requested_keops"] and not r["used_keops"] for r in summary["external_hvp"]):
+            ok = False  # A silent dense fallback does not validate the KeOps backend.
     if args.kernel_profile != "upstream":
         ok = ok and summary["profile_after_tests"]["status"] == "profile_verified"
     all_skipped = (returncode in (0, 5) and summary["tests"]["skipped"] > 0 and passed == 0
@@ -261,6 +283,8 @@ raise SystemExit(pytest.main(sys.argv[1:]))
                    and summary["source_after_tests"]["status"] == "verified"
                    and (args.kernel_profile == "upstream" or summary["profile_after_tests"]["status"] == "profile_verified")
                    and args.hvp_max_cg_iter is None)
+    if args.ott_hessian_root is not None:
+        all_skipped = all_skipped and summary["ott_hessian_after_tests"]["status"] == "verified"
     if args.hvp_max_cg_iter is not None:
         convergence = output / "cg_convergence.json"
         summary["cg_convergence"] = (json.loads(convergence.read_text(encoding="utf-8")) if convergence.exists()

@@ -1,0 +1,28 @@
+{
+  "repository": "https://github.com/yexf308/OTT-Hessian.git",
+  "commit": "7eb189fe39982f587da935044480655b65939637",
+  "files": {
+    ".DS_Store": "6db84b5eafa4eb10db3b03722ea1594eb341616869bd098da876ec181a7d8a7f",
+    ".gitignore": "506a95672524dc2a807e5bec735895d2ce306d73beda92b28149989399ce3db6",
+    "3D_pointcloud_regist.py": "0fdb1146d5743c3263018cfc8325bda112437d88b890f9cf4c209b3ac0fb2d58",
+    "CondH.py": "06c4e81d6187ed9b00f0d3a46532f79f81b5ac654899707895a476244fababc8",
+    "Hessian_accuracy_uniform.py": "a091fc914a1db8e57fd672e0f7cc3751fa0c97d72a3ddb81512026052ee6fdf8",
+    "Hessian_speed_uniform.py": "ea064cab41c2d4069fc1bcf0f6a5ef94c3217e1a2dcd445e4d19b050507bd286",
+    "PYTORCH_IMPLEMENTATION.md": "a5f641105465d55f18819db7a896e812b22d496cfa0ba9ae68fe91ef84e1c9a0",
+    "README.md": "a308ab32b6423cefaf29a22e412a4ca2dddb1160d58c21abb133afe40a3b5bcf",
+    "Requirements.txt": "308137bba79e3cf7017ffa8b1c328e1b9ee7bd1dfc556be6ac03e72aa7e4dcc5",
+    "SinkhornHessian.py": "7cd3c27a14563e949bf2f35d5719173308df38f498975a6b950488e5cb1c5158",
+    "benchmark_hessian.py": "85549e20e5a8d07dbcd9a8f7f05c8875b1a54dffa85f3f88605fa5a357a81b63",
+    "notebooks/3D_pointcloud_regist.ipynb": "7d3c3ac91d36edb296f1d81f12de2b7ad861d6ddfa6b085dc55d575e74a59bc7",
+    "notebooks/Hessian_accuracy_uniform.ipynb": "740a1997d3b7390a596024366fe1efce3b4d71a72b98348cc0aef6d6884a8c30",
+    "notebooks/Hessian_speed_uniform.ipynb": "bfca81d4eda0a452d506c0bb7ffad4783b66dd2945d8de1b14fcda0ed01dc25a",
+    "notebooks/shuffled_regression.ipynb": "78456e6bfb302184e69e99132e66d2f8d4e252eb980c8f3a16ec5815c1c6385f",
+    "shuffled_regression.py": "6551a8a631d50864bf166ef72b8aac44f37d48a53002ad393fcdc6557eaec410",
+    "test.py": "f2065eb4035da7a85643c741065b0e814695b362c963081388af3015e2cc5688",
+    "test_Hessian.py": "8b4c7c9c8a024416ba1688925a8f90b55707bdd563d40e83f958af32ae375b6f",
+    "test_jax_torch_equivalence.py": "8c97a51316d294885cd9b3ed7975e123cef74c92339a1b37b475fa0a58a165a6",
+    "tests/test_torch_hessian.py": "1ce9258445758d3bd6e4a37c903189e87a285d45e5d7aaf13fa7b05f2d64360b",
+    "torch_sinkhorn_hessian.py": "c067aa1859cd30a6d253d4a245bd8ef39258bd25969ca9e692852058e70583b8",
+    "util.py": "54542d02f0ed08827959e0f1243c660fe7829769c74bde2a97026f7d9eb95812"
+  }
+}
