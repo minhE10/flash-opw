@@ -40,7 +40,14 @@ def audit(path):
             if name not in names or hashlib.sha256(zipped.read(name)).hexdigest() != digest:
                 errors.append(f"Checksum mismatch: {name}")
         summary = read_json("suite-summary.json")
-        if summary.get("expected_files") != expected_files:
+        scope = summary.get("scope", "full")  # Older artifacts always ran the full inventory.
+        selected = summary.get("expected_files", [])
+        if scope == "subset":
+            if (not selected or len(selected) != len(set(selected)) or
+                not set(selected) <= set(expected_files) or summary.get("suite_inventory") != expected_files):
+                errors.append("Subset selection differs from pinned author inventory")
+            expected_files = selected
+        elif scope != "full" or selected != expected_files:
             errors.append("Suite inventory differs from pinned author inventory")
         for key in ("source", "source_after_tests"):
             record = summary.get(key, {})
@@ -71,20 +78,22 @@ def audit(path):
             runs.append(dict(run, tests=counts, status=record["status"]))
         if len(runs) != len({r["file"] for r in runs}):
             errors.append("Duplicate test-file runs")
-        cg = read_json("test_samples_loss_api/cg_convergence.json")
-        records = cg.get("records", [])
-        if cg.get("status") != "converged" or len(records) != 2 or {r["path"] for r in records} != {"autograd", "reference"}:
-            errors.append("CG evidence does not contain both converged paths")
-        for record in records:
-            residual, initial = record.get("cg_residual"), record.get("cg_initial_residual")
-            steps = record.get("cg_iters")
-            if (not record.get("finite_output") or not record.get("cg_converged") or
-                not isinstance(steps, int) or not 0 <= steps <= summary.get("cg_cap", 0) or
-                not all(isinstance(x, (int, float)) and math.isfinite(x) and x >= 0 for x in (residual, initial)) or
-                residual > max(1e-6, 1e-6*initial) or record.get("tau2") != 1e-5 or
-                record.get("cg_rtol") != 1e-6 or record.get("cg_atol") != 1e-6 or
-                record.get("max_cg_iter") != summary.get("cg_cap")):
-                errors.append(f"CG convergence/parameters failed independent audit: {record.get('path')}")
+        if "test_samples_loss_api.py" in expected_files:
+            cg_path = "test_samples_loss_api/cg_convergence.json"
+            cg = read_json(cg_path) if cg_path in names else {}
+            records = cg.get("records", [])
+            if cg.get("status") != "converged" or len(records) != 2 or {r["path"] for r in records} != {"autograd", "reference"}:
+                errors.append("CG evidence does not contain both converged paths")
+            for record in records:
+                residual, initial = record.get("cg_residual"), record.get("cg_initial_residual")
+                steps = record.get("cg_iters")
+                if (not record.get("finite_output") or not record.get("cg_converged") or
+                    not isinstance(steps, int) or not 0 <= steps <= summary.get("cg_cap", 0) or
+                    not all(isinstance(x, (int, float)) and math.isfinite(x) and x >= 0 for x in (residual, initial)) or
+                    residual > max(1e-6, 1e-6*initial) or record.get("tau2") != 1e-5 or
+                    record.get("cg_rtol") != 1e-6 or record.get("cg_atol") != 1e-6 or
+                    record.get("max_cg_iter") != summary.get("cg_cap")):
+                    errors.append(f"CG convergence/parameters failed independent audit: {record.get('path')}")
         numerics = read_json("independent/numerics.json")
         check_profile("independent")
         settings = numerics.get("settings", {})
@@ -117,10 +126,11 @@ def audit(path):
                 not all(isinstance(x,(int,float)) and math.isfinite(x) and x >= 0 for x in (residual,initial)) or
                 residual > max(1e-6,1e-6*initial)):
                 errors.append("Independent numerical case lacks confirmed CG convergence")
-        computed = summarize(runs, numerics.get("status"), expected_files)
+        computed = summarize(runs, numerics.get("status"), expected_files,
+                             scope=scope if scope in ("full", "subset") else "full")
         if computed["status"] != summary.get("status") or computed["tests"] != summary.get("tests"):
             errors.append("Aggregate status/counts mismatch")
-    return {"status": "failed_audit" if errors else computed["status"], "tests": computed["tests"],
+    return {"status": "failed_audit" if errors else computed["status"], "scope": scope, "tests": computed["tests"],
             "coverage_gaps": computed["coverage_gaps"], "errors": errors,
             "limitation": "Checks saved evidence; does not rerun CUDA or authenticate the remote host."}
 
@@ -137,7 +147,7 @@ def main():
     print(json.dumps(result, indent=2))
     if args.output:
         args.output.write_text(json.dumps(result, indent=2)+"\n", encoding="utf-8")
-    return 0 if result["status"] == "passed_extended_compatibility" else 3 if result["status"] == "passed_with_coverage_gaps" else 1
+    return 0 if result["status"] in ("passed_extended_compatibility", "passed_subset_compatibility") else 3 if result["status"] == "passed_with_coverage_gaps" else 1
 
 
 if __name__ == "__main__":

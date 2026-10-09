@@ -23,7 +23,9 @@ except ImportError:  # Direct script execution.
     from author_flashsinkhorn_sources import ROOT, load_manifest, verify
 
 
-def summarize(runs, independent, expected_files):
+def summarize(runs, independent, expected_files, scope="full"):
+    if scope not in ("full", "subset"):
+        raise ValueError(f"Unknown validation scope: {scope}")
     covered = {r["file"] for r in runs}
     failures = [r["file"] for r in runs if r["exit_code"] not in (0, 3)
                 or r.get("tests", {}).get("failed", 0) or r.get("tests", {}).get("errors", 0)
@@ -37,7 +39,8 @@ def summarize(runs, independent, expected_files):
     if failures or independent != "passed" or covered != set(expected_files):
         status = "failed"
     else:
-        status = "passed_with_coverage_gaps" if gaps else "passed_extended_compatibility"
+        status = "passed_with_coverage_gaps" if gaps else (
+            "passed_subset_compatibility" if scope == "subset" else "passed_extended_compatibility")
     return {"status": status, "tests": counts, "failed_files": failures, "coverage_gaps": gaps,
             "missing_files": sorted(set(expected_files)-covered), "independent_status": independent}
 
@@ -45,10 +48,18 @@ def summarize(runs, independent, expected_files):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--test-file", action="append", help="Repeat to rerun selected pinned test basenames; default is all 20 files")
     parser.add_argument("--cg-cap", type=int, default=256, help="Previously validated scoped fixture budget (default 256)")
     args = parser.parse_args()
     if args.cg_cap <= 64:
         parser.error("--cg-cap must exceed the original fixture budget of 64")
+    manifest = load_manifest()
+    inventory = sorted(Path(name).name for name in manifest["files"]
+                       if name.startswith("torch-ext/flash_sinkhorn/testing/test_") and name.endswith(".py"))
+    if args.test_file and (len(set(args.test_file)) != len(args.test_file) or not set(args.test_file) <= set(inventory)):
+        parser.error("--test-file must contain unique basenames from the pinned author inventory")
+    files = sorted(args.test_file) if args.test_file else inventory
+    scope = "subset" if args.test_file else "full"
     device = os.environ.get("CUDA_VISIBLE_DEVICES", "").strip()
     if not device or "," in device or device == "-1":
         parser.error("Set CUDA_VISIBLE_DEVICES to exactly one allocated GPU")
@@ -70,11 +81,9 @@ def main():
     for name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
         env[name] = "2"
     source = verify()
-    manifest = load_manifest()
-    files = sorted(Path(name).name for name in manifest["files"]
-                   if name.startswith("torch-ext/flash_sinkhorn/testing/test_") and name.endswith(".py"))
     summary = {"status": "running", "timestamp_utc": datetime.now(timezone.utc).isoformat(),
                "source": source, "kernel_profile": "rtx5080", "cg_cap": args.cg_cap,
+               "scope": scope, "suite_inventory": inventory,
                "expected_files": files, "runs": [], "independent_status": "not_run",
                "limitations": ["Small independent balanced cases are not a full Hessian proof or speed benchmark.",
                                "Matrix-apply autotuning is disabled by the compatibility profile.",
@@ -162,7 +171,7 @@ def main():
             if result.get("gpu_status") == "unavailable" or result.get("source", {}).get("status") != "verified":
                 print("[extended] Stopping after failed environment/source preflight; remaining files are not validated.", flush=True)
                 break
-        summary.update(summarize(summary["runs"], summary["independent_status"], files))
+        summary.update(summarize(summary["runs"], summary["independent_status"], files, scope=scope))
         summary["source_after_tests"] = verify()
         if summary["source_after_tests"]["status"] != "verified":
             summary["status"] = "failed"
@@ -173,7 +182,7 @@ def main():
     save()
     bundle()
     print(f"[extended] {summary['status']}: {summary.get('tests', {})}", flush=True)
-    return 0 if summary["status"] == "passed_extended_compatibility" else 3 if summary["status"] == "passed_with_coverage_gaps" else 1
+    return 0 if summary["status"] in ("passed_extended_compatibility", "passed_subset_compatibility") else 3 if summary["status"] == "passed_with_coverage_gaps" else 1
 
 
 if __name__ == "__main__":

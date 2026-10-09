@@ -15,11 +15,18 @@ from scripts.run_author_extended_validation import summarize
 @pytest.mark.parametrize("mutation,expected", [(None, "passed_extended_compatibility"),
                                              ("skip", "passed_with_coverage_gaps"),
                                              ("checksum", "failed_audit"), ("count", "failed_audit"),
-                                             ("cg", "failed_audit"), ("numerics", "failed_audit")])
+                                             ("cg", "failed_audit"), ("numerics", "failed_audit"),
+                                             ("subset", "passed_subset_compatibility"),
+                                             ("subset_as_full", "failed_audit"),
+                                             ("unknown_subset", "failed_audit")])
 def test_saved_evidence_audit_recomputes_counts_convergence_and_checksums(tmp_path, mutation, expected):
     manifest = load_manifest()
     files = sorted(Path(name).name for name in manifest["files"]
                    if name.startswith("torch-ext/flash_sinkhorn/testing/test_") and name.endswith(".py"))
+    inventory = files[:]
+    is_subset = mutation in ("subset", "subset_as_full", "unknown_subset")
+    if is_subset:
+        files = ["test_unbalanced_sinkhorn.py"]
     payload = {}
     def put(name, data):
         payload[name] = json.dumps(data).encode()
@@ -40,7 +47,13 @@ def test_saved_evidence_audit_recomputes_counts_convergence_and_checksums(tmp_pa
                                       "test_files":["torch-ext/flash_sinkhorn/testing/"+name],"status":status,"tests":counts})
         put(prefix+"/kernel-profile.json", profile)
     summary = {"source":source,"source_after_tests":source,"expected_files":files,"runs":runs,"cg_cap":256}
-    summary.update(summarize(runs, "passed", files))
+    if is_subset:
+        summary.update(scope="subset", suite_inventory=inventory)
+    summary.update(summarize(runs, "passed", files, scope="subset" if is_subset else "full"))
+    if mutation == "subset_as_full":
+        summary.update(scope="full", status="passed_extended_compatibility")
+    if mutation == "unknown_subset":
+        summary["expected_files"] = ["test_unknown.py"]
     if mutation == "count":
         summary["tests"]["passed"] += 1
     put("suite-summary.json", summary)
@@ -49,7 +62,8 @@ def test_saved_evidence_audit_recomputes_counts_convergence_and_checksums(tmp_pa
          "tau2":1e-5,"cg_rtol":1e-6,"cg_atol":1e-6,"max_cg_iter":256} for path in ("autograd","reference")]}
     if mutation == "cg":
         cg["records"][0]["cg_residual"] = 2e-6
-    put("test_samples_loss_api/cg_convergence.json", cg)
+    if not is_subset:
+        put("test_samples_loss_api/cg_convergence.json", cg)
     cases = [{"shape":list(shape),"mode":mode,"cost_scale":scale,"status":"passed","allow_tf32":False,
               "apply_relative_l2":{"0":1e-7,"1":1e-7}, "reference_marginal_l1":1e-7,"gpu_marginal_l1":1e-7,
               "plan_relative_l2":1e-7,"hvp_relative_l2":1e-7,"direct_system_relative_residual":1e-12,

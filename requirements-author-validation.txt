@@ -1,0 +1,2 @@
+# Only the external GeomLoss test dependency; install into the author venv with --no-deps.
+geomloss==0.3.1 --hash=sha256:3ecb9ed72a7122d1ff60f0975edd759d2d1ac1b2397eaea7af6c7523ee117d4b

@@ -322,3 +322,47 @@ Trạng thái full đạt vẫn phải đọc cùng warnings của từng file: 
 upstream không bắt buộc hội tụ của mọi lời gọi CG. Kiểm tra CG nghiêm ngặt mới
 áp dụng cho fixture đã chỉ định và 12 case độc lập; không suy rộng ra mọi HVP.
 **Chưa có kết quả GPU cho workflow mở rộng này trên máy local CPU.**
+
+### Audit lượt mở rộng và kiểm tra lại GeomLoss
+
+Artifact nhận qua commit `e34c467` đã được audit: **374 passed, 1 failed,
+2 collection errors, 3 skipped**; checksum/inventory/metadata không có lỗi.
+Cả **12 case FP64 độc lập đạt**, max HVP relative L2 khoảng `4.888e-7`.
+Chi tiết và giới hạn nằm ở
+[`author_flashsinkhorn_extended_audit_20261009.md`](../reports/author_flashsinkhorn_extended_audit_20261009.md).
+ZIP đã được lưu local và gỡ khỏi main ở `3499c3f` theo quy trình chuyển file
+server bằng Git do người dùng yêu cầu; lịch sử Git vẫn chứa ZIP.
+
+Ba nonpass đều do GeomLoss 0.2.6 thiếu `geomloss._legacy`. Dev extras tác giả
+yêu cầu `geomloss>=0.3`; wheel 0.3.1 đã được kiểm tra có các import cần thiết.
+Chạy trên server để chỉ cài GeomLoss đã ghim hash vào venv author, rồi kiểm tra
+lại năm file phụ thuộc package này và 12 case độc lập:
+
+```bash
+conda activate minh
+cd /home/doanpt/minh.nd/flash-opw
+git pull --ff-only
+outputs/venv-author-flashsinkhorn/bin/python -m pip install \
+  --no-deps --only-binary=:all: --require-hashes -r requirements-author-validation.txt
+CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 \
+  outputs/venv-author-flashsinkhorn/bin/python -u \
+  scripts/run_author_extended_validation.py \
+  --test-file test_autograd_semantics.py \
+  --test-file test_geomloss_sinkhorn_triton.py \
+  --test-file test_geomloss_vs_triton.py \
+  --test-file test_half_cost.py \
+  --test-file test_unbalanced_sinkhorn.py
+```
+
+Nếu lệnh cài package báo lỗi, dừng trước bước test. Lệnh `pip` trên không cài
+lại Torch/Triton và không cài dependency bắc cầu. Năm file được chọn bao gồm
+hai file từng đạt nhưng cũng import GeomLoss, vì dependency đã đổi phiên bản.
+Không sửa kernel, source tác giả, damping hoặc tolerance trong bước này.
+
+`--test-file` lặp được ở workflow mở rộng; bỏ option sẽ chạy toàn bộ 20 file
+như trước. Lượt chọn file lưu `scope=subset` và inventory đầy đủ trong summary,
+vẫn có heartbeat, kiểm tra hash, environment và ZIP SHA-256. Khi đạt hoàn toàn
+trong phạm vi đã chọn, trạng thái là **`passed_subset_compatibility`** (exit 0),
+không phải `passed_extended_compatibility`. Auditor phân biệt hai phạm vi và
+chỉ yêu cầu CG fixture API nếu đã chọn file API; 12 case độc lập vẫn bắt buộc.
+Ba skip OTT-Hessian của lượt trước chưa được xử lý bằng lượt GeomLoss này.

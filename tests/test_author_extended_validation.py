@@ -10,6 +10,25 @@ import pytest
 from scripts.run_author_extended_validation import summarize
 
 
+def test_selected_pass_is_labelled_as_subset():
+    runs = [{"file":"a.py", "exit_code":0, "status":"passed_compatibility", "tests":{"passed":1}}]
+    assert summarize(runs, "passed", ["a.py"], scope="subset")["status"] == "passed_subset_compatibility"
+    with pytest.raises(ValueError, match="Unknown validation scope"):
+        summarize(runs, "passed", ["a.py"], scope="unknown")
+
+
+@pytest.mark.parametrize("selection", [["test_unknown.py"], ["test_half_cost.py", "test_half_cost.py"]])
+def test_invalid_selection_rejected_before_gpu_or_output_creation(tmp_path, selection):
+    script = Path(__file__).resolve().parents[1] / "scripts/run_author_extended_validation.py"
+    command = [sys.executable, str(script), "--output", str(tmp_path / "unused")]
+    for name in selection:
+        command += ["--test-file", name]
+    result = subprocess.run(command, text=True, capture_output=True)
+    assert result.returncode == 2
+    assert "unique basenames" in result.stderr
+    assert not (tmp_path / "unused").exists()
+
+
 @pytest.mark.parametrize("kind,expected", [("passed", "passed_extended_compatibility"),
                                           ("skipped", "passed_with_coverage_gaps"),
                                           ("error", "failed"), ("missing", "failed")])
