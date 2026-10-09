@@ -1,0 +1,268 @@
+{
+  "status": "completed_with_nonconvergence",
+  "dataset": "FacesUCR",
+  "gallery": 200,
+  "queries": 2050,
+  "test_used_for_selection": false,
+  "primary_k": 1,
+  "ks": [
+    1,
+    3,
+    5,
+    7,
+    15,
+    30
+  ],
+  "profiles": [
+    "selected",
+    "preset"
+  ],
+  "metrics": [
+    "flash-opw",
+    "opw",
+    "tlp",
+    "opw-kl",
+    "sinkhorn",
+    "tcot",
+    "dtw",
+    "ldtw",
+    "ndtw",
+    "soft-dtw",
+    "ot"
+  ],
+  "selection_sha256": "82a090e585c28a98a3ddabe007bac98849cfb43b903bcbd8343183d9c4602d91",
+  "sources": {
+    "flashopw/__init__.py": "203330d0bc8c9b498565966c743331e5805dd1092f1208d7fbdfdb4191001b4a",
+    "flashopw/solver.py": "63fcaa0a030ebd661be71f8da996c7194527030a1b0ce3a083741fab4d016edc",
+    "flashsinkhorn/__init__.py": "25b175ded2b7d2bc2d11bcdab53b7b590229799b708c05fd684b1d84dc713eb5",
+    "flashsinkhorn/differentiation.py": "37c3538bca5da0f89cd0b20ce77a6a1ef4566e804793576cff7b878c5b582a29",
+    "flashsinkhorn/kernel_tuning.py": "f32c1cfcdcb75f02ff74c1f7645664a5a0f97dbedf4c15ef277017d827890cd1",
+    "flashsinkhorn/solver.py": "dfccef56f8845cffd48a2cb5a9a190332899b9f748f1105e4b0ab15a5023cabb",
+    "flashsinkhorn/transport.py": "00836dc70af9f28f111c90ec62db322797880a6a43f124ef671455d5404d5f6d",
+    "flashsinkhorn/triton_kernels.py": "d3693d5a45134ef845e9746611f14b4d25dfce1722543c1034c71c3fa4a79c78",
+    "experiments/opw_parameters.py": "3a9730fa6cd5dd7c0fd5de99e1992a748fcac5076e65ddb72e74456d91b71786",
+    "experiments/opw_tune.py": "5c34dae2e3b9f616ff926792653fe43a39140509673df4f64401dabc2105cf6b",
+    "experiments/opw_scaling.py": "7a50356f4511eee6ecbda88382ad14966122ee548553b70570ff994f668b1822",
+    "experiments/opw_knn.py": "055de47899df57e14f32ffb4cffceca1b70be7a68382b4fa3be4ea9ed9bfb5f1",
+    "experiments/sequence_data.py": "2d37caf1050f56acb95e0b0d0696333880a242b7cff67edab67f6513d9b68d48",
+    "experiments/sequence_metrics.py": "9a68a223404d0df1688251a6963b4ef05bf86a17bd4865b96f77699ae5b32a12",
+    "experiments/sequence_metrics_torch.py": "9aa6296cbb22220eb00cffe17d41d7f825486e30939964537f26adc69157e928",
+    "experiments/retrieval.py": "45e4eb6ff444f20f87a714b01d67b1e909b1d4cf7f12b658f325f685b6927225",
+    "experiments/runtime.py": "c80b52c453f2cb3cfc37126fb4b1570107766bd93605199fa82442d178383dd5",
+    "experiments/opw_group3.py": "53df02cbc48bbbd8a32fd2e41a041db0bd5a3823f12b7e882dacfaf30a4024d1",
+    "experiments/opw_group4.py": "7f6fced8c1d715165fa7c0e8b534fec4cf7861529002cf285664396e41cc44b4",
+    "experiments/paired_statistics.py": "d67d5a5f58c5ae8b1d8f3482be2218cc4f0e8dbeb67e2c530527f0d6ed459085",
+    "experiments/opw_group4_resume.py": "cc9c32b60bfc7fd813c7242bfdabd5b5145a8196a8071feb0218a02b4b582bee"
+  },
+  "policy": {
+    "tau": 0.001,
+    "max_iters": 4000,
+    "check_every": 50,
+    "schedule": "f_then_g"
+  },
+  "quality": {
+    "selected__flash-opw": {
+      "unconverged_pairs": 5,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__opw": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__tlp": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__tlp": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__opw-kl": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__sinkhorn": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__tcot": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__dtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__dtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "selected__ldtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__ldtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "selected__ndtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__ndtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "selected__soft-dtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "selected__ot": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__ot": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__flash-opw": {
+      "unconverged_pairs": 2,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__opw": {
+      "unconverged_pairs": 333,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__opw-kl": {
+      "unconverged_pairs": 322,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__sinkhorn": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__tcot": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__soft-dtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    }
+  },
+  "matrix_hashes": {
+    "selected__flash-opw": {
+      "file": "matrices/flash-opw__e73fbc838c5af7a6350df0b7c6e01d634710f1e16539b8768796e24c0180b3a0.npz",
+      "sha256": "2528fec8e15d9444589c699144261f33ba06b67f7224fde342fa9a70578be3e6"
+    },
+    "selected__opw": {
+      "file": "matrices/opw__99d47baede6426d467b22d7564c60075c3425d693c79c59aee6d1bbab2f244f9.npz",
+      "sha256": "ff8cd0f28713bfca7c7bff1f532089ea67ebb1e359a58915b1f7ba9fd66d6a40"
+    },
+    "selected__tlp": {
+      "file": "matrices/tlp__018cf6cbad733d670afc88c4dd18a5b9155155b587d2808a3000c7c4e737f889.npz",
+      "sha256": "3538f8d4f4332daeae691c6fc4c8ebc9840e6daa32dc4d2cd20ad7467b2b3371"
+    },
+    "preset__tlp": {
+      "file": "matrices/tlp__018cf6cbad733d670afc88c4dd18a5b9155155b587d2808a3000c7c4e737f889.npz",
+      "sha256": "3538f8d4f4332daeae691c6fc4c8ebc9840e6daa32dc4d2cd20ad7467b2b3371"
+    },
+    "selected__opw-kl": {
+      "file": "matrices/opw-kl__8d5d428359b2623c31fdf503dbd8546df9589faba46e2d4e1c63a341a502c1cd.npz",
+      "sha256": "e2ca291b4076e389c0f9bdfbd3e719ea702e1c231a8f65729477329a8639d515"
+    },
+    "selected__sinkhorn": {
+      "file": "matrices/sinkhorn__d32b0269383d4e0ee365eec4a5bfdcc069996dd4d2f342f5a87b0534ff925cc7.npz",
+      "sha256": "6eb7420d4fad7907fba6e05a745bcc5b5625c8f2d8b16150ee802361eb6933ba"
+    },
+    "selected__tcot": {
+      "file": "matrices/tcot__12a85ce1edcac419a9a4242ce43da247ffee2db76fa462b4b28fed90a7fe7d1a.npz",
+      "sha256": "3461424817b06c53c74e90c30c763f263f291af006a07e9893053f85cb8fe9cc"
+    },
+    "selected__dtw": {
+      "file": "matrices/dtw__574d0e1ca98ebaa6beb4985d4b30cb7c9572945690e5b9bce62aac10dfd41733.npz",
+      "sha256": "c9c102abbc49e4992920c00d564ce7059075fa7d10817899e4ed3461496c3177"
+    },
+    "preset__dtw": {
+      "file": "matrices/dtw__574d0e1ca98ebaa6beb4985d4b30cb7c9572945690e5b9bce62aac10dfd41733.npz",
+      "sha256": "c9c102abbc49e4992920c00d564ce7059075fa7d10817899e4ed3461496c3177"
+    },
+    "selected__ldtw": {
+      "file": "matrices/ldtw__574d0e1ca98ebaa6beb4985d4b30cb7c9572945690e5b9bce62aac10dfd41733.npz",
+      "sha256": "06eb7926e202e707672e7b9723e7eb5dcd1093daacf58d0d93f2dddcd328109d"
+    },
+    "preset__ldtw": {
+      "file": "matrices/ldtw__574d0e1ca98ebaa6beb4985d4b30cb7c9572945690e5b9bce62aac10dfd41733.npz",
+      "sha256": "06eb7926e202e707672e7b9723e7eb5dcd1093daacf58d0d93f2dddcd328109d"
+    },
+    "selected__ndtw": {
+      "file": "matrices/ndtw__574d0e1ca98ebaa6beb4985d4b30cb7c9572945690e5b9bce62aac10dfd41733.npz",
+      "sha256": "581db2464c580907fc2c4577fcc18e37f4efe45eddf3b22d6fa5c6b9d5953507"
+    },
+    "preset__ndtw": {
+      "file": "matrices/ndtw__574d0e1ca98ebaa6beb4985d4b30cb7c9572945690e5b9bce62aac10dfd41733.npz",
+      "sha256": "581db2464c580907fc2c4577fcc18e37f4efe45eddf3b22d6fa5c6b9d5953507"
+    },
+    "selected__soft-dtw": {
+      "file": "matrices/soft-dtw__a56711dfc12885b47d199bcc94f4689f443a7aeaaea786e2147abb682a46d4d0.npz",
+      "sha256": "6eb1eb8cfc215091e45e632777827289838d2673f2e2f46ab20ab7763c360541"
+    },
+    "selected__ot": {
+      "file": "matrices/ot__574d0e1ca98ebaa6beb4985d4b30cb7c9572945690e5b9bce62aac10dfd41733.npz",
+      "sha256": "a3af713dd5b70781443aa45785a4d8a8a5cf1280afeff4e75a9d3e1c85d934b4"
+    },
+    "preset__ot": {
+      "file": "matrices/ot__574d0e1ca98ebaa6beb4985d4b30cb7c9572945690e5b9bce62aac10dfd41733.npz",
+      "sha256": "a3af713dd5b70781443aa45785a4d8a8a5cf1280afeff4e75a9d3e1c85d934b4"
+    },
+    "preset__flash-opw": {
+      "file": "matrices/flash-opw__51d05e2f99b48462b5bc5dabe381a6332bc8d3bc61ea1e5b609a03c2bbc1dbd0.npz",
+      "sha256": "1b33639b0573edeafada11a70fddae8c6b80adc4a7dc8f61987949d45b2fd306"
+    },
+    "preset__opw": {
+      "file": "matrices/opw__51d05e2f99b48462b5bc5dabe381a6332bc8d3bc61ea1e5b609a03c2bbc1dbd0.npz",
+      "sha256": "2c5d4eebec803ce01dede0d426ab4fd211febb9b709562fe86ec59a8dccde74a"
+    },
+    "preset__opw-kl": {
+      "file": "matrices/opw-kl__4848d83edae696096c6af8a47903ec65f18de6eed80a8aceda63cd2f84ef3124.npz",
+      "sha256": "30f37caf84e44335cad5fd25e1c07f146997ee94dec40bdb3919e33e88c6e635"
+    },
+    "preset__sinkhorn": {
+      "file": "matrices/sinkhorn__ce1c1950d88b45544b5c056da05ceae1969dd2060712f44a5cab6efc8164ee86.npz",
+      "sha256": "bfa93c9ff4ce0bdd59ca9fc38c48eef627f2c7348ded05bf399fdf41ed1c6161"
+    },
+    "preset__tcot": {
+      "file": "matrices/tcot__5b20dc9e5ae43151e985a59a312454ddcf707cfac8be20993547d972a469e688.npz",
+      "sha256": "b93a0a6e7bc84e0a308ee046882c44d9985e6e8329ed56a6bdc0859cad4d2ced"
+    },
+    "preset__soft-dtw": {
+      "file": "matrices/soft-dtw__fd8a2f5b4cbd4fe745d7a8708259723354a31e258adca5a1a7f12d8a1b1d41d1.npz",
+      "sha256": "f503a4609aa83a5660eb8d79d14cdb692dfb830b20266f5cdb8be5c098cb9a83"
+    }
+  },
+  "completed_chunks": 8721,
+  "total_chunks": 8721,
+  "limits": "One aggregate TRAIN selection; query uncertainty conditional on fixed gallery; no native long-sequence or speed claim"
+}

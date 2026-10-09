@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "chunks_verified": 8721,
+  "unique_configurations": 17,
+  "gallery": 200,
+  "queries": 2050,
+  "method_profile_evaluations": 22,
+  "full_test": true,
+  "test_used_for_selection": false,
+  "paired_comparisons_verified": 20,
+  "convergence_status": "completed_with_nonconvergence",
+  "checks": [
+    "frozen sources and parameters",
+    "full TRAIN/TEST values and indices",
+    "chunk hashes/checkpoints",
+    "complete matrices versus chunks",
+    "per-query AP and k-NN predictions",
+    "MAP/ACC and residual diagnostics",
+    "paired bootstrap / exact McNemar / Holm",
+    "CSV tables and report"
+  ],
+  "limits": "Artifact readback only; does not independently re-solve every coupling or measure GPU performance"
+}
