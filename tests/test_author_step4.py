@@ -142,6 +142,80 @@ def test_audit_recomputes_numerical_outputs_and_rejects_tampering():
     with pytest.raises(AssertionError):recompute(bad_record,arrays)
 
 
+def test_missing_normal_direction_never_certifies_direct_hvp():
+    r,arrays=synthetic_case()
+    r['input_sha256']['direction']='different-platform-normal-output'
+    with pytest.raises(AssertionError):recompute(r,arrays)
+    incomplete=dict(arrays,direct_hvp=arrays['direct_hvp']+100)
+    result=recompute(r,incomplete,allow_missing_direction=True)
+    assert result['direction_verified'] is False
+    assert result['direct_hvp_recomputed'] is False
+    assert set(result['unverified_checks'])=={'hvp_author_vs_direct','hvp_legacy_vs_direct'}
+    r['input_sha256']['x']='different-coordinates'
+    with pytest.raises(AssertionError):recompute(r,arrays,allow_missing_direction=True)
+
+
+def test_exact_supplement_restores_direct_hvp_audit(monkeypatch):
+    from scripts import audit_author_step4 as auditor
+    record,arrays=synthetic_case()
+    original=inputs(record['case'])
+    monkeypatch.setattr(auditor,'inputs',lambda case:(*original[:-1],original[-1]+0.01))
+    with pytest.raises(AssertionError):auditor.recompute(record,arrays)
+    result=auditor.recompute(record,arrays,direction=original[-1])
+    assert result['direction_verified'] and result['direct_hvp_recomputed']
+    assert result['unverified_checks']==[] and result['status']==record['status']
+
+
+def test_direction_export_parts_bind_to_original_hashes(tmp_path,monkeypatch):
+    import hashlib
+    import json
+    import zipfile
+    from scripts import export_author_step4_directions as exporter
+    cases=inventory()[:2]
+    monkeypatch.setattr(exporter,'inventory',lambda:cases)
+    monkeypatch.setattr(exporter,'MAX_PART_BYTES',256)
+    helper=exporter.Path(exporter.__file__).with_name('author_step4_reference.py')
+    summary={'inventory':cases,'runs':[{'id':c['id']} for c in cases],
+        'validation_code_sha256':{helper.name:hashlib.sha256(helper.read_bytes()).hexdigest()}}
+    members={'step4-summary.json':json.dumps(summary).encode()}
+    for case in cases:
+        members[case['id']+'/result.json']=json.dumps({'case':case,'hvp':{'present':True},
+            'input_sha256':tensor_hashes(inputs(case))}).encode()
+    members['artifact-sha256.json']=json.dumps({n:hashlib.sha256(b).hexdigest() for n,b in members.items()}).encode()
+    archive=tmp_path/'original.zip'
+    with zipfile.ZipFile(archive,'w') as z:
+        for n,b in members.items():z.writestr(n,b)
+    parts=exporter.export(archive,tmp_path/'exports')
+    assert len(parts)==2
+    sha=hashlib.sha256(archive.read_bytes()).hexdigest()
+    recovered=exporter.load_directions(parts,sha)
+    for case in cases:
+        torch.testing.assert_close(recovered[case['id']],inputs(case)[-1],rtol=0,atol=0)
+    with pytest.raises(AssertionError):exporter.load_directions(parts[:1],sha)
+    with pytest.raises(AssertionError):exporter.load_directions(parts,'wrong-original-archive')
+
+
+def test_pinned_mat5_pruning_reproduces_invalid_keyword_dimension():
+    # Characterize the upstream defect without importing Triton or changing
+    # protected source. This is not a test that Mat5 is numerically correct.
+    import ast
+    from pathlib import Path
+    source=Path(__file__).resolve().parents[1]/'flash_sinkhorn_author/torch-ext/flash_sinkhorn/kernels/apply_ott.py'
+    tree=ast.parse(source.read_text(encoding='utf-8'))
+    function=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_mat5_prune_configs')
+    namespace={}
+    exec(compile(ast.Module(body=[function],type_ignores=[]),str(source),'exec'),namespace)
+    configs=[SimpleNamespace(kwargs={'BLOCK_D':d}) for d in (16,32,64,128,256,512,1024)]
+    prune=namespace[function.name]
+    # Triton 3.6 keeps positional named_args separate from launch kwargs.
+    assert [c.kwargs['BLOCK_D'] for c in prune(configs,{},D=512)]==[64,128,256]
+    assert all(c.kwargs['BLOCK_D']>=512 for c in prune(configs,{'D':512}))
+    hvp_source=source.parents[1]/'hvp.py'
+    calls=[n for n in ast.walk(ast.parse(hvp_source.read_text(encoding='utf-8')))
+           if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='mat5_sqeuclid']
+    assert len(calls)==1 and 'autotune' not in {k.arg for k in calls[0].keywords}
+
+
 def test_parent_preserves_failure_continues_and_bundles(tmp_path,monkeypatch):
     import json
     import subprocess

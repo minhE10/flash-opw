@@ -405,6 +405,10 @@ ZIP đã sao lưu local và gỡ khỏi main. Bước 4 đã có runner
 `scripts/run_author_step4.py` cho 111 trường hợp correctness, cùng auditor
 CPU FP64 từ arrays/input hashes. Lệnh chạy và chuyển ZIP nằm ở
 [hướng dẫn bước 4](flash_sinkhorn_author_validation_plan.md#thực-thi-bước-4-correctness-mở-rộng-và-đối-chiếu-bản-cũ).
-Chưa có kết quả GPU bước 4. Lượt này phân biệt lịch symmetric native với
-adapter khớp lịch, hai quy ước gradient và đơn vị damping HVP; shape lớn chỉ
-kiểm tra các hàng/cột được chọn và lưu riêng coverage gap. Bước 5–6 chưa chạy.
+Lượt GPU bước 4 qua `bbf200c` đã chạy đủ 111 case: 62 failed, 28 passed,
+21 passed với coverage gap, không runtime error. Audit một phần đã tính lại
+forward/apply/gradient và chênh lệch output HVP. Cần bổ sung direction gốc
+do CPU randn khác byte giữa server và local; exporter CPU mới không chạy lại GPU.
+Đã xác định lỗi prune Mat5 ở source ghim, cùng sai số TF32 so FP64 đáng kể.
+Chi tiết và giới hạn nằm trong [audit bước 4](../reports/author_flashsinkhorn_step4_audit_20261010.md).
+Giữ nguồn gốc readonly, chưa gọi correctness hoàn tất. Bước 5–6 chưa chạy.

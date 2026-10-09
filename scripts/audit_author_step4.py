@@ -15,18 +15,31 @@ try:
     from .author_flashsinkhorn_sources import ROOT,load_manifest
     from .author_flashsinkhorn_profiles import expected_entries
     from .author_flashsinkhorn_fp64 import direct_hvp
+    from .export_author_step4_directions import load_directions
 except ImportError:
     from author_step4_reference import (PROTOCOL,inventory,inputs,tensor_hashes,selected,
         fixed_potentials,sample_plan,cost_matrix,relative,check,cg_confirmed,decide)
     from author_flashsinkhorn_sources import ROOT,load_manifest
     from author_flashsinkhorn_profiles import expected_entries
     from author_flashsinkhorn_fp64 import direct_hvp
+    from export_author_step4_directions import load_directions
 
 
-def recompute(record,arrays):
+def recompute(record,arrays,*,allow_missing_direction=False,direction=None):
     case=record['case'];dense=case['tier']=='dense'
     assert record['protocol']==PROTOCOL
-    raw=inputs(case);assert tensor_hashes(raw)==record['input_sha256'], 'Regenerated input hashes differ'
+    raw=list(inputs(case))
+    direction_required=dense or case['tier']=='benchmark_hvp'
+    if direction is not None:
+        assert direction.dtype==torch.float32 and direction.shape==raw[-1].shape
+        raw[-1]=direction
+    regenerated=tensor_hashes(raw)
+    mismatches={name for name in regenerated if regenerated[name]!=record['input_sha256'].get(name)}
+    assert not mismatches or ((allow_missing_direction or not direction_required) and mismatches=={'direction'}), 'Regenerated input hashes differ'
+    direction_verified=not mismatches
+    # Original artifacts did not save randn output. CPU normal generation can
+    # differ across platforms even when x/y/a/b match bit for bit. Never use a
+    # different direction to certify the saved direct-HVP reference.
     x,y,a,b,v=[t.double() for t in raw]
     rows,cols=selected(len(x),dense),selected(len(y),dense)
     assert torch.equal(rows,arrays['rows']) and torch.equal(cols,arrays['cols'])
@@ -98,7 +111,7 @@ def recompute(record,arrays):
         confirmed=cg_confirmed(h['author_cg']) and cg_confirmed(h['legacy_cg'])
         if confirmed:compare('hvp_author_vs_legacy',ha,hl,PROTOCOL['hvp_relative_limit'])
         else:gaps.append('HVP CG not confirmed in both backends; parity metric is diagnostic only')
-        if dense:
+        if dense and direction_verified:
             fo,go=arrays['hvp_ott_f'].double(),arrays['hvp_ott_g'].double()
             hp=torch.exp((fo[:,None]+go[None,:]-cost_matrix(x,y,cs))/eps)
             hd,lr=direct_hvp(x,y,hp,v,eps,cs,1e-5)
@@ -107,21 +120,32 @@ def recompute(record,arrays):
             if confirmed:
                 compare('hvp_author_vs_direct',ha,hd,PROTOCOL['hvp_relative_limit'])
                 compare('hvp_legacy_vs_direct',hl,hd,PROTOCOL['hvp_relative_limit'])
-    assert set(checks)==set(record['checks']), 'Missing or extra numerical checks'
+    unverified=[]
+    if dense and not direction_verified:
+        unverified=[name for name in ('hvp_author_vs_direct','hvp_legacy_vs_direct') if name in record['checks']]
+    assert set(checks)|set(unverified)==set(record['checks']), 'Missing or extra numerical checks'
     for name,result in checks.items():
         saved=record['checks'][name]
         assert saved['limit']==result['limit'] and saved['passed']==result['passed'],name
         assert math.isclose(saved['relative_l2'],result['relative_l2'],rel_tol=1e-7,abs_tol=1e-12),name
     assert gaps==record['coverage_gaps']
-    status=decide(checks,gaps)
+    # Check original accounting using the reported values for missing checks,
+    # while explicitly excluding them from the list of recomputed evidence.
+    reported_only={name:record['checks'][name] for name in unverified}
+    for result in reported_only.values():
+        assert result['limit']==PROTOCOL['hvp_relative_limit']
+        assert result['passed']==(math.isfinite(result['relative_l2']) and result['relative_l2']<=result['limit'])
+    status=decide(dict(checks,**reported_only),gaps)
     assert status==record['status']
     return {'status':status,'failed_checks':[name for name,c in checks.items() if not c['passed']],
-            'coverage_gaps':gaps}
+            'coverage_gaps':gaps,'direction_verified':direction_verified,'direction_required':direction_required,'unverified_checks':unverified,
+            'direct_hvp_recomputed':dense and direction_verified}
 
 
-def audit(archive):
+def audit(archive,*,allow_missing_direction=False,direction_parts=()):
     torch.set_num_threads(2)
     errors=[];results=[];pin=load_manifest()
+    directions=load_directions(direction_parts,hashlib.sha256(archive.read_bytes()).hexdigest()) if direction_parts else {}
     with zipfile.ZipFile(archive) as z:
         names=z.namelist()
         assert len(names)==len(set(names)) and sum(i.file_size for i in z.infolist())<=512*2**20
@@ -145,9 +169,11 @@ def audit(archive):
             assert hashlib.sha256((ROOT/'scripts'/n).read_bytes()).hexdigest()==h,'Validator version differs from uploaded run'
         assert [r['id'] for r in s['runs']]==[c['id'] for c in inventory()] and not s['missing_cases']
         environments=[]
+        required_directions=[]
         for run,case in zip(s['runs'],inventory()):
             print(f"[audit-step4] {case['id']}",flush=True)
             record=read(case['id']+'/result.json');assert record['case']==case
+            if record.get('hvp'):required_directions.append(case['id'])
             environments.append(record['environment'])
             for key in ('torch','triton','numpy'):
                 assert record['environment'][key]==s['environment'][key]
@@ -159,25 +185,32 @@ def audit(archive):
             with np.load(BytesIO(raw),allow_pickle=False) as saved:
                 arrays={n:torch.from_numpy(saved[n].copy()) for n in saved.files}
             try:
-                result=recompute(record,arrays)
+                result=recompute(record,arrays,allow_missing_direction=allow_missing_direction,direction=directions.get(case['id']))
                 assert result['status']==run['status']
                 assert (run['exit_code']==0)==(result['status']!='failed')
                 results.append(dict(id=case['id'],**result))
             except Exception as exc:
                 errors.append(f"{case['id']}: {type(exc).__name__}: {exc}")
         if any(e!=environments[0] for e in environments):errors.append('Case environments differ')
+        if direction_parts:assert set(directions)==set(required_directions)
         assert s['failed_cases']==[r['id'] for r in s['runs'] if r['exit_code'] or r['status']=='failed']
         assert s['coverage_gaps']==[r['id'] for r in s['runs'] if r['status']=='passed_checks_with_coverage_gaps']
         status='failed' if any(r['status']=='failed' for r in results) else 'passed_checks_with_coverage_gaps' if any(r['status'].endswith('coverage_gaps') for r in results) else 'passed_checks'
         if status!=s['status']:errors.append('Aggregate status mismatch')
-    return {'status':'failed_audit' if errors else status,'cases':results,'errors':errors,
+    incomplete=any(r.get('direction_required',True) and not r.get('direction_verified',False) for r in results)
+    return {'status':'failed_audit' if errors else 'partial_audit' if incomplete else status,
+        'reported_run_status':s['status'],'cases':results,'errors':errors,
         'limitation':'CPU FP64 audit of saved outputs and regenerated hash-matched inputs; no CUDA rerun or server authentication.'}
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('archive',type=Path)
-    parser.add_argument('--output',type=Path);args=parser.parse_args()
-    try:result=audit(args.archive)
+    parser.add_argument('--output',type=Path)
+    parser.add_argument('--allow-missing-direction',action='store_true',
+        help='Partial audit only: verify matching x/y/a/b, omit direct-HVP recomputation when direction hash differs')
+    parser.add_argument('--directions',type=Path,action='append',default=[],help='All ZIP parts of hash-verified original HVP directions')
+    args=parser.parse_args()
+    try:result=audit(args.archive,allow_missing_direction=args.allow_missing_direction,direction_parts=args.directions)
     except Exception as exc:result={'status':'failed_audit','errors':[f'{type(exc).__name__}: {exc}']}
     print(json.dumps(result,indent=2))
     if args.output:args.output.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')

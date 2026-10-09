@@ -308,4 +308,44 @@ Sao lưu ZIP local rồi gỡ ZIP khỏi main và push cleanup theo quy trình �
 
 Kiểm tra local đã bao gồm đối chiếu lịch cập nhật bằng CPU, đơn vị damping,
 phát hiện arrays/tolerance bị sửa và runner giữ case lỗi khi tổng hợp/bundle.
-Chưa có kết quả GPU bước 4 để ghi vào báo cáo thực nghiệm.
+Kết quả GPU bước 4 đã nhận qua `bbf200c` và kiểm tra ngày 10/10/2026; xem dưới đây.
+
+### Kết quả bước 4: lỗi số học và thiếu direction để audit toàn phần
+
+Lượt chạy đủ 111/111, **62 failed, 28 passed, 21 passed với gap**, không runtime
+error. Source/profile/legacy/helper hashes và checksum khớp. Audit một phần
+tính lại plan/apply/gradient, forward reference FP64 và chênh lệch hai output
+HVP đã lưu; giữ trạng thái GPU `failed`. x/y/a/b khớp hash cả 111 case, nhưng
+CPU randn direction trên Windows khác byte Linux. Giả định tái tạo direction
+bằng seed của runner ban đầu chưa đủ; chưa xác minh lại direct-HVP.
+
+Tất cả so plan author/legacy sau khớp lịch đều đạt. Tuy nhiên cả 38 forward
+benchmark TF32 lỗi so FP64; mô hình CPU truncation dot giải thích phần lớn
+chênh lệch, không được dùng làm tolerance/pass mới. HVP phát hiện lỗi prune
+Mat5 đọc D từ positional named_args và bỏ qua keyword D; d>256 có thể bị chọn
+BLOCK_D<=256, bỏ lại cột output chưa ghi. Cờ autotune=False của HVP cũng không
+được truyền xuống Mat5. Đã tái hiện lỗi lọc cấu hình bằng CPU; nguồn readonly
+giữ nguyên. Case HVP 10000x10000x512 có relative L2 author/legacy 9922.49.
+
+Chi tiết bằng chứng, giới hạn audit và control GPU cần chạy tiếp nằm trong
+[báo cáo bước 4](../reports/author_flashsinkhorn_step4_audit_20261010.md).
+Không gọi bước 4 hoàn tất hoặc chuyển lỗi thành pass do cả hai backend gần nhau.
+
+Để bổ sung direction chính xác mà **không chạy lại GPU**, sau khi pull công cụ
+mới, khôi phục ZIP gốc từ commit upload vào một đường dẫn ignored và xuất
+directions trên cùng server/venv. Exporter so tất cả input hash với lượt gốc;
+nếu không khớp sẽ dừng. `--upload` chỉ commit các ZIP part mới rồi push main,
+không gộp file đang sửa khác. Mỗi part có tối đa 48 MiB dữ liệu để chuyển qua Git.
+
+```bash
+conda activate minh
+cd /home/doanpt/minh.nd/flash-opw
+git pull --ff-only && git show bbf200c:outputs/author_flashsinkhorn_step4_20261009_212437_3232203.zip > outputs/author_step4_original_bbf200c.zip
+env OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 outputs/venv-author-flashsinkhorn/bin/python -u scripts/export_author_step4_directions.py outputs/author_step4_original_bbf200c.zip --upload
+```
+
+Sau khi nhận đủ các part: pull, kiểm tra binding với SHA-256 ZIP gốc và hash
+direction từng case, audit lại CPU FP64, sao lưu rồi gỡ ZIP part khỏi main.
+Auditor hỗ trợ `--directions <part>` lặp cho mọi part. Chỉ dùng
+`--allow-missing-direction` khi muốn audit một phần, trạng thái phải là
+`partial_audit`; không dùng direction sinh local khác hash cho hệ KKT.
