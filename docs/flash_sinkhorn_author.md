@@ -110,6 +110,62 @@ trước/sau test. Không ghi đè artifact của một lượt GPU đã có.
 
 ## Trạng thái và bước tiếp theo
 
+### Cấu hình tương thích RTX 5080 (09/10/2026)
+
+Log server ghi 119 test đạt, 8 lỗi shared memory (101632 byte yêu cầu so với
+101376 byte giới hạn) và 2 lỗi CUDA OOM. Chưa có traceback đầy đủ của 8 lỗi
+shared memory để xác nhận kernel/candidate cụ thể. Cấu hình dưới nhắm vào
+apply-plan matrix dùng trong HVP và hai test OOM; cần chạy lại trên GPU để
+xác nhận tác dụng, không coi đây là kết quả đã đạt CUDA.
+
+`--kernel-profile rtx5080` tạo bản sao riêng trong output của mỗi lượt, chỉ
+thay launch controls tại `apply_plan_mat_flashstyle`: `block_m=block_n=32`,
+`block_k=block_d=16`, `num_stages=1`, `autotune=False`. Thay tại hàm launcher
+để mọi lần gọi qua HVP và re-export đều nhận cấu hình, kể cả các lần gọi
+HVP không truyền block/stages từ bên ngoài. Cấu hình này ghi đè launch controls
+được truyền vào hàm apply matrix; `num_warps` giữ giá trị của caller.
+Các kernel tính toán, dtype, TF32, exp/exp2, epsilon, damping, số vòng CG,
+ngưỡng hội tụ và tolerance/test của tác giả giữ nguyên.
+
+Cả `external/flash-sinkhorn-upstream/` và `flash_sinkhorn_author/` vẫn nguyên
+byte. Bản sao được sinh ở `implementation-rtx5080/`; `kernel-profile.patch`
+ghi diff và `kernel-profile.json` ghi cấu hình/commit/hash 131 file. Runner
+kiểm tra cả bản gốc lẫn bản tương thích trước/sau test. Import probe xác nhận
+package nằm trong bản sao tương thích, không rơi về editable install bản gốc.
+Trạng thái đạt được ghi `passed_compatibility` (hoặc
+`passed_with_skips_compatibility`), phân biệt với validation upstream.
+
+Chạy 10 test vừa lỗi trước, rồi toàn bộ core nếu lượt đầu đạt:
+
+```bash
+conda activate minh
+cd /home/doanpt/minh.nd/flash-opw
+git pull --ff-only
+
+CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 \
+  outputs/venv-author-flashsinkhorn/bin/python scripts/validate_author_flashsinkhorn.py \
+  --gpu --suite regressions --kernel-profile rtx5080 \
+  --output "outputs/author_flashsinkhorn_rtx5080_regressions_$(date +%Y%m%d_%H%M%S)"
+
+# Sau khi regressions đạt:
+CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 \
+  outputs/venv-author-flashsinkhorn/bin/python scripts/validate_author_flashsinkhorn.py \
+  --gpu --suite core --kernel-profile rtx5080 \
+  --output "outputs/author_flashsinkhorn_rtx5080_core_$(date +%Y%m%d_%H%M%S)"
+```
+
+Không cần cài lại package vì runner dùng đường dẫn bản sao cho từng lượt.
+Mặc định `--kernel-profile upstream` tiếp tục chạy nguyên bản. Có thể kiểm tra
+việc tạo bản tương thích trên CPU bằng cùng lệnh nhưng bỏ `--gpu`; trạng thái
+lúc đó là `static_profile_verified_gpu_pending`, không phải CUDA pass.
+
+Autotuning của apply matrix bị tắt nên các test `test_flashstyle_autotune_parity`
+trong profile này so các launch cố định, không chứng minh autotuner đạt.
+Các test vẫn dùng nguyên tolerance nhưng phạm vi coverage phải hiểu theo cấu
+hình đang chạy. Profile này phục vụ correctness trên RTX 5080, chưa tối ưu
+timing và không thay kết quả benchmark upstream. Process khác chiếm VRAM vẫn
+có thể gây OOM; runner không dừng process đó hay nới tolerance để vượt lỗi.
+
 - Đã tải repo, ghim commit và đặt reference chỉ đọc.
 - Đã tạo bản implementation đầy đủ khớp 131 file của tác giả.
 - Đã bổ sung kiểm tra source, test phát hiện sửa file và runner CUDA.

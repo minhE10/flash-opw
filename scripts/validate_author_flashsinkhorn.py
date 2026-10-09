@@ -1,7 +1,8 @@
 """Validate the author's source without importing the legacy flashsinkhorn package.
 
 Static verification works on CPU. GPU validation executes the unmodified
-author tests, in a separate process, and refuses to count a CPU skip as a pass.
+author tests in a separate process. Optional compatibility launches are
+labelled separately; CPU skips never count as passes.
 """
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 from author_flashsinkhorn_sources import IMPLEMENTATION, REFERENCE, ROOT, verify
+from author_flashsinkhorn_profiles import prepare_profile, verify_profile
 
 
 CORE_TESTS = (
@@ -23,12 +25,19 @@ CORE_TESTS = (
     "test_sinkhorn_triton.py", "test_half_cost.py", "test_samples_loss_api.py",
     "test_samples_loss_tf32.py", "test_hvp_sqeuclid.py",
 )
+REGRESSION_TESTS = (
+    "test_samples_loss_tf32.py::test_default_tf32_hvp_reaches_input",
+    "test_hvp_sqeuclid.py::test_hvp_x_matches_dense_reference_small",
+    "test_hvp_sqeuclid.py::test_apply_plan_mat_matches_dense_reference_small",
+)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gpu", action="store_true")
-    parser.add_argument("--suite", choices=("core", "full"), default="core")
+    parser.add_argument("--suite", choices=("core", "full", "regressions"), default="core")
+    parser.add_argument("--kernel-profile", choices=("upstream", "rtx5080"), default="upstream",
+                        help="upstream is byte-identical; rtx5080 changes only matrix-apply launch controls in a separate copy.")
     parser.add_argument("--implementation-only", action="store_true")
     parser.add_argument("--preflight-timeout", type=float, default=180,
                         help="Maximum seconds for imports and CUDA environment checks (default: 180).")
@@ -46,7 +55,8 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=True)
     summary = {"timestamp_utc": datetime.now(timezone.utc).isoformat(),
                "gpu_requested": args.gpu, "gpu_status": "not_run", "suite": args.suite,
-               "status": "running", "phase": "verifying_source"}
+               "status": "running", "phase": "verifying_source",
+               "kernel_profile": args.kernel_profile}
 
     def save():
         (output / "validation.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -71,8 +81,20 @@ def main() -> int:
         ast.parse((IMPLEMENTATION / name).read_bytes(), filename=name)
     summary["python_files_parsed"] = len(python_names)
     print(f"[source] Parsed {len(python_names)} Python files.", flush=True)
+    implementation = IMPLEMENTATION
+    if args.kernel_profile != "upstream":
+        summary["phase"] = "preparing_kernel_profile"
+        save()
+        implementation, summary["profile"] = prepare_profile(output)
+        save()
+        if summary["profile"]["verification"]["status"] != "profile_verified":
+            summary["status"] = "failed"
+            save()
+            return 1
+        print(f"[profile] {args.kernel_profile}: {summary['profile']['overrides']}; original trees unchanged.", flush=True)
     if not args.gpu:
-        summary["status"] = "static_verified_gpu_pending"
+        summary["status"] = ("static_verified_gpu_pending" if args.kernel_profile == "upstream"
+                             else "static_profile_verified_gpu_pending")
         summary["phase"] = "complete"
         save()
         print(f"Source verified; {len(python_names)} Python files parsed. CUDA tests NOT run.")
@@ -90,7 +112,7 @@ def main() -> int:
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONUNBUFFERED"] = "1"
     # Both package and test resolution must prefer this exact copy over site-packages.
-    env["PYTHONPATH"] = str(IMPLEMENTATION / "torch-ext")
+    env["PYTHONPATH"] = str(implementation / "torch-ext")
     env.setdefault("OMP_NUM_THREADS", "2")
     env.setdefault("MKL_NUM_THREADS", "2")
     env.setdefault("OPENBLAS_NUM_THREADS", "2")
@@ -105,6 +127,8 @@ free_bytes, total_bytes = torch.cuda.mem_get_info(0)
 print(json.dumps({'python': sys.version, 'torch': torch.__version__,
     'triton': triton.__version__, 'cuda': torch.version.cuda,
     'gpu': torch.cuda.get_device_name(0), 'package': str(package),
+    'compute_capability': list(torch.cuda.get_device_capability(0)),
+    'shared_memory_per_block_optin': getattr(torch.cuda.get_device_properties(0), 'shared_memory_per_block_optin', None),
     'version': flash_sinkhorn.__version__,
     'free_vram_mib': free_bytes / 2**20, 'total_vram_mib': total_bytes / 2**20}))
 """
@@ -112,8 +136,8 @@ print(json.dumps({'python': sys.version, 'torch': torch.__version__,
     save()
     print(f"[gpu] Importing Torch/Triton and checking CUDA (timeout {args.preflight_timeout:g}s)...", flush=True)
     try:
-        preflight = subprocess.run([sys.executable, "-u", "-B", "-c", probe, str(IMPLEMENTATION)],
-                                   cwd=IMPLEMENTATION, env=env, text=True, capture_output=True,
+        preflight = subprocess.run([sys.executable, "-u", "-B", "-c", probe, str(implementation)],
+                                   cwd=implementation, env=env, text=True, capture_output=True,
                                    timeout=args.preflight_timeout)
     except subprocess.TimeoutExpired as exc:
         summary["gpu_status"] = "unavailable"
@@ -138,29 +162,33 @@ print(json.dumps({'python': sys.version, 'torch': torch.__version__,
     summary["environment"] = json.loads(preflight.stdout.strip().splitlines()[-1])
     gpu_env = summary["environment"]
     print(f"[gpu] {gpu_env['gpu']}; free VRAM {gpu_env['free_vram_mib']:.0f}/{gpu_env['total_vram_mib']:.0f} MiB.", flush=True)
-    test_root = IMPLEMENTATION / "torch-ext" / "flash_sinkhorn" / "testing"
-    tests = [test_root] if args.suite == "full" else [test_root / name for name in CORE_TESTS]
+    test_root = implementation / "torch-ext" / "flash_sinkhorn" / "testing"
+    names = REGRESSION_TESTS if args.suite == "regressions" else CORE_TESTS
+    tests = [test_root] if args.suite == "full" else [test_root / name for name in names]
     report = output / "pytest.xml"
     # Each run has a fresh XML file so an interrupted run cannot reuse old results.
     if report.exists():
         parser.error(f"Output already contains a test report: {report}; choose a new --output")
     test_program = """
-import sys, torch, pytest
+import pathlib, sys, torch, pytest
+expected_source = pathlib.Path(sys.argv.pop(1)).resolve()
+import flash_sinkhorn
+assert expected_source in pathlib.Path(flash_sinkhorn.__file__).resolve().parents, 'Unexpected test package source'
 torch.set_num_threads(2)
 torch.cuda.set_per_process_memory_fraction(0.45)
 raise SystemExit(pytest.main(sys.argv[1:]))
 """
-    command = [sys.executable, "-u", "-B", "-c", test_program, "-v", "-ra", "-c",
-               str(IMPLEMENTATION / "pyproject.toml"), "--rootdir", str(IMPLEMENTATION),
+    command = [sys.executable, "-u", "-B", "-c", test_program, str(implementation), "-v", "-ra", "-c",
+               str(implementation / "pyproject.toml"), "--rootdir", str(implementation),
                "-o", f"cache_dir={output / 'pytest-cache'}", "--junitxml", str(report),
                *map(str, tests)]
     summary["gpu_status"] = "running"
     summary["phase"] = "running_tests"
-    summary["test_files"] = [str(path.relative_to(IMPLEMENTATION)) for path in tests]
+    summary["test_files"] = [str(path.relative_to(implementation)) for path in tests]
     save()
     print(f"[tests] Starting {args.suite} author suite; Triton compilation/autotuning may take time.", flush=True)
     with (output / "pytest.log").open("w", encoding="utf-8") as log:
-        process = subprocess.Popen(command, cwd=IMPLEMENTATION, env=env, text=True,
+        process = subprocess.Popen(command, cwd=implementation, env=env, text=True,
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in process.stdout:
             print(line, end="", flush=True)
@@ -172,6 +200,8 @@ raise SystemExit(pytest.main(sys.argv[1:]))
     save()
     print("[source] Checking source hashes after tests...", flush=True)
     summary["source_after_tests"] = verify()
+    if args.kernel_profile != "upstream":
+        summary["profile_after_tests"] = verify_profile(implementation)
     if report.exists():
         cases = list(ET.parse(report).getroot().iter("testcase"))
         summary["tests"] = {
@@ -182,8 +212,11 @@ raise SystemExit(pytest.main(sys.argv[1:]))
         summary["tests"]["passed"] = len(cases) - sum(summary["tests"][k] for k in ("failed", "errors", "skipped"))
     passed = summary.get("tests", {}).get("passed", 0)
     ok = returncode == 0 and passed > 0 and summary["source_after_tests"]["status"] == "verified"
+    if args.kernel_profile != "upstream":
+        ok = ok and summary["profile_after_tests"]["status"] == "profile_verified"
     summary["gpu_status"] = ("passed_with_skips" if summary["tests"]["skipped"] else "passed") if ok else "failed"
-    summary["status"] = summary["gpu_status"]
+    summary["status"] = (f"{summary['gpu_status']}_compatibility" if ok and args.kernel_profile != "upstream"
+                         else summary["gpu_status"])
     summary["phase"] = "complete"
     save()
     print(f"[result] {summary['status']}: {summary.get('tests', {})}", flush=True)
