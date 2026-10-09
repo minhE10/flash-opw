@@ -75,3 +75,30 @@ runpy.run_path(sys.argv[0], run_name='__main__')
     assert summary["gpu_status"] == "unavailable"
     assert summary["status"] == "failed"
     assert "tests" not in summary
+
+
+def test_gpu_preflight_timeout_preserves_diagnosis_without_starting_tests(tmp_path):
+    script = Path(__file__).resolve().parents[1] / "scripts" / "validate_author_flashsinkhorn.py"
+    env = dict(os.environ, CUDA_VISIBLE_DEVICES="1")
+    program = """
+import runpy, subprocess, sys
+sys.path.insert(0, sys.argv[1])
+import author_flashsinkhorn_sources as sources
+sources.verify = lambda **kwargs: {'status': 'verified', 'reference_checked': True}
+def timeout(*args, **kwargs):
+    raise subprocess.TimeoutExpired(args[0], kwargs['timeout'], output=b'partial stdout', stderr=b'partial stderr')
+subprocess.run = timeout
+sys.argv = [sys.argv[2], '--gpu', '--preflight-timeout', '1', '--output', sys.argv[3]]
+runpy.run_path(sys.argv[0], run_name='__main__')
+"""
+    result = subprocess.run([sys.executable, "-c", program, str(script.parent), str(script), str(tmp_path)],
+                            env=env, text=True, capture_output=True)
+    assert result.returncode == 2, result.stdout + result.stderr
+    summary = json.loads((tmp_path / "validation.json").read_text())
+    assert summary["status"] == "failed"
+    assert summary["phase"] == "checking_gpu"
+    assert "exceeded 1s" in summary["error"]
+    assert "[source]" in result.stdout and "[gpu]" in result.stdout
+    assert "partial stdoutpartial stderr" in (tmp_path / "preflight.log").read_text()
+    assert not (tmp_path / "pytest.log").exists()
+    assert "tests" not in summary

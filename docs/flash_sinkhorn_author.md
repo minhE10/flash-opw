@@ -97,6 +97,13 @@ không tạo kết quả GPU pass. Runner giới hạn PyTorch allocator ở 45%
 Không dùng chung GPU với lượt benchmark cần đo timing được kiểm soát tải.
 
 Sau khi core đã qua, có thể chạy `--suite full` với **output directory mới**.
+Runner in trạng thái kiểm tra source, parse Python, kiểm tra GPU và chạy tests.
+`validation.json` ghi `phase` hiện tại; log pytest được flush sau mỗi dòng.
+Kiểm tra môi trường (import Torch/Triton và CUDA) có timeout mặc định 180 giây,
+có thể điều chỉnh bằng `--preflight-timeout`. Timeout này không áp dụng cho
+thời gian compile/autotune hoặc chạy bộ test. Preflight cũng ghi VRAM còn trống;
+giới hạn allocator 45% không đặt trước VRAM và không ngăn process khác dùng GPU.
+
 Tất cả lệnh test giữ nguyên test/tolerance của tác giả. Mỗi lượt lưu metadata,
 đường dẫn package, log pytest, JUnit XML, số pass/fail/skip và kiểm tra hash
 trước/sau test. Không ghi đè artifact của một lượt GPU đã có.
