@@ -396,5 +396,9 @@ Bước 3 dùng `run_author_extended_validation.py` không chọn subset, thêm
 ghim ở bước 1. Runner và auditor ghi/kiểm tra dependency trước/sau, giữ lỗi
 baseline thật trong kết quả, chạy tiếp các file còn lại. Lệnh đầy đủ và cách
 chuyển ZIP nằm trong [kế hoạch bước 3](flash_sinkhorn_author_validation_plan.md#thực-thi-bước-3-một-lượt-full-trong-môi-trường-thống-nhất).
-Chưa có kết quả GPU cho lượt full mới này; local chỉ kiểm tra orchestration
-và audit bằng dữ liệu mô phỏng.
+Lượt full bước 3 qua `9bd2535` đã được
+[audit](../reports/author_flashsinkhorn_step3_audit_20261009.md): đủ 20 file,
+401 passed, 1 failed, 2 skipped, không collection error. 19 file ngoài HVP
+parity đạt; file HVP còn lỗi baseline KeOps và thiếu API JAX. CG fixture
+hội tụ cả hai đường và 12/12 case độc lập đạt. Trạng thái tổng vẫn `failed`.
+ZIP đã sao lưu local và gỡ khỏi main; bước 4–6 chưa thực hiện.

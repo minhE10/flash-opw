@@ -73,8 +73,9 @@ thí nghiệm liên quan. Không kết luận kết quả cũ sai chỉ từ kh�
 - Chi tiết checksum, traceback, bảng budget và giới hạn bằng chứng nằm ở
   [báo cáo audit bước 1–2](../reports/author_flashsinkhorn_steps12_audit_20261009.md).
   ZIP đã sao lưu local và gỡ khỏi main theo quy trình chuyển file. Trạng thái
-  tổng vẫn `failed_or_incomplete` do bước 1. Runner bước 3 đã chuẩn bị; kết quả
-  GPU lượt full mới đang chờ server. Bước 4–6 chưa thực hiện.
+  tổng vẫn `failed_or_incomplete` do bước 1. Bước 3 đã chạy và audit lượt full:
+  20 file, 401 passed, 1 failed, 2 skipped; trạng thái `failed` do OTT-Hessian.
+  12 case FP64 độc lập đạt. Bước 4–6 chưa thực hiện.
 - Kiểm tra local: 48 test đạt (reference FP64, phát hiện source/dependency bị
   sửa, accounting và runner); 131 file tác giả vẫn verified. 22 hash dependency
   được đối chiếu trực tiếp với Git blobs tại pin, không chỉ với working tree.
@@ -181,3 +182,19 @@ cleanup. Không gộp lượt này với các lượt subset cũ. Lệnh audit l
 Audit chấp nhận bằng chứng một lượt test có lỗi nếu accounting/nguồn đúng,
 nhưng vẫn trả trạng thái test `failed`; `failed_audit` là bằng chứng không đủ
 hoặc không khớp. Bước 3 chưa thể gọi là full pass khi còn lỗi/skip baseline.
+
+### Kết quả bước 3 đã audit (09/10/2026)
+
+Artifact qua commit `9bd2535` đã chạy đủ 20 file, **401 passed, 1 failed,
+2 skipped, 0 errors**. 19 file ngoài HVP parity đạt toàn bộ assertion;
+lỗi KeOps và hai skip API JAX vẫn nằm trong `test_hvp_parity.py` như bước 1.
+Không đổi trạng thái tổng `failed` thành pass. CG fixture hai đường hội tụ
+sau 149 bước, residual `5.4462555e-7`; 12/12 case FP64 độc lập đạt.
+Checksum, source/profile/dependency và phiên bản môi trường 20 file khớp.
+Warnings early stopping còn được lưu, không suy ra hội tụ chỉ từ test pass.
+
+Đã sao lưu local và gỡ ZIP chuyển giao khỏi main. Chi tiết từng file, metrics,
+warnings và giới hạn nằm trong
+[báo cáo audit bước 3](../reports/author_flashsinkhorn_step3_audit_20261009.md).
+Bước tiếp theo theo kế hoạch là mở rộng correctness tới workload benchmark
+(bước 4), giữ riêng phần đối chứng OTT-Hessian còn thiếu; chưa chạy bước 4–6.
