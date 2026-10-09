@@ -75,7 +75,8 @@ thí nghiệm liên quan. Không kết luận kết quả cũ sai chỉ từ kh�
   ZIP đã sao lưu local và gỡ khỏi main theo quy trình chuyển file. Trạng thái
   tổng vẫn `failed_or_incomplete` do bước 1. Bước 3 đã chạy và audit lượt full:
   20 file, 401 passed, 1 failed, 2 skipped; trạng thái `failed` do OTT-Hessian.
-  12 case FP64 độc lập đạt. Bước 4–6 chưa thực hiện.
+  12 case FP64 độc lập đạt. Bước 4 đã chuẩn bị runner; chưa có kết quả GPU.
+  Bước 5–6 chưa thực hiện.
 - Kiểm tra local: 48 test đạt (reference FP64, phát hiện source/dependency bị
   sửa, accounting và runner); 131 file tác giả vẫn verified. 22 hash dependency
   được đối chiếu trực tiếp với Git blobs tại pin, không chỉ với working tree.
@@ -197,4 +198,114 @@ Warnings early stopping còn được lưu, không suy ra hội tụ chỉ từ 
 warnings và giới hạn nằm trong
 [báo cáo audit bước 3](../reports/author_flashsinkhorn_step3_audit_20261009.md).
 Bước tiếp theo theo kế hoạch là mở rộng correctness tới workload benchmark
-(bước 4), giữ riêng phần đối chứng OTT-Hessian còn thiếu; chưa chạy bước 4–6.
+(bước 4), giữ riêng phần đối chứng OTT-Hessian còn thiếu; chưa có kết quả GPU bước 4–6.
+
+## Thực thi bước 4: correctness mở rộng và đối chiếu bản cũ
+
+Đã chuẩn bị `scripts/run_author_step4.py`, chưa chạy GPU tại máy local.
+Inventory cố định gồm **111 trường hợp**, chạy tuần tự, mỗi trường hợp trong
+một process riêng để giải phóng VRAM:
+
+- 56 case dense: 14 shape, hai schedule symmetric/alternating, hai precision
+  IEEE FP32/TF32. Có dimension 1–1024, shape không vuông tới 512x640x13,
+  epsilon 0.01/0.1/1, cost scale 1/0.5 và uniform/nonuniform weights. Epsilon,
+  scale và weights phân bố theo shape, không phải tích Descartes đầy đủ.
+- 38 case forward: 19 shape duy nhất từ các sweep benchmark forward và memory,
+  hai schedule, TF32; gồm n tới 50000 và d tới 1024.
+- 17 case HVP: toàn bộ shape duy nhất của hai sweep HVP, symmetric, IEEE FP32;
+  n tới 50000, d tới 512.
+
+Mỗi phép so dùng cùng input FP32, epsilon, cost scale và precision. Input được
+sinh bằng CPU RNG rồi chuyển GPU, lưu SHA-256 để tái tạo khi audit; seed 0
+không đồng nghĩa tensor trùng với benchmark cũ sinh bằng CUDA RNG. Các case
+dense dùng U[0,1]/sqrt(d); shape benchmark dùng U[0,1]. Không sửa 131 file
+tác giả hoặc source solver cũ. Dùng profile matrix-apply RTX 5080 đã kiểm tra;
+autotune tắt trong lượt correctness. Đây chưa phải benchmark thời gian bước 5.
+
+### Quy ước đối chiếu
+
+Symmetric tác giả có thêm một cập nhật full ở đầu và một ở cuối; bản cũ native
+chỉ có các cập nhật half-step. Runner lưu cả hai kết quả native, rồi dùng
+adapter validation gọi kernel cũ với đúng các cập nhật đầu/cuối để so cùng
+lịch. Không đổi solver cũ hoặc gọi adapter là bản cũ nguyên trạng. Alternating
+dùng native hai bên. Fixed 10 vòng tương ứng 12 cập nhật symmetric hoặc 10
+cập nhật alternating; không dùng early stopping cho phép so này.
+
+Apply-plan hai chiều dùng cùng potentials tác giả và matrix giá trị x−0.5/y−0.5
+(có phần tử âm), cùng vector ones. Gradient tác giả chuẩn hóa theo marginal
+đích a/b, còn gradient bản cũ dùng marginal thực của P. Khi P chưa hội tụ, hai
+định nghĩa có thể khác; mỗi bên được kiểm tra với công thức FP64 tương ứng và
+lưu riêng chênh lệch quy ước. HVP hai bên dùng cùng P, IEEE, không preconditioner;
+đơn vị damping được khớp bằng `legacy damping = epsilon * author tau2`, tau2=1e-5.
+Đây là implicit operator có damping tại P đã cho; chỉ diễn giải thành Hessian
+tại nghiệm OT khi forward đã được xác nhận hội tụ.
+
+Dense chạy thêm 500 vòng, reference CPU FP64 độc lập cùng lịch; kiểm tra toàn
+bộ P, apply và gradient. HVP so với hệ KKT FP64 giải trực tiếp, cap CG 256.
+Shape benchmark HVP solve 100 vòng, cap CG 50; forward benchmark giữ 10 vòng.
+Ở shape lớn chỉ kiểm tra 8 hàng và 8 cột trải đều, mỗi hàng/cột vẫn dùng toàn
+bộ phía đối diện. Lưu full potentials, các output được chọn, input hashes,
+CG diagnostics, warnings, versions và source/profile hashes trong ZIP.
+
+Ngưỡng diagnostic được khai báo trước trong `author_step4_reference.py`:
+relative L2 5e-4 cho IEEE, 5e-3 cho TF32, 5e-4 cho HVP; residual hệ KKT <=1e-9.
+Đây là tiêu chí của bước 4, không sửa tolerance test upstream. Dense chỉ xác
+nhận forward khi marginal L1 GPU dựng lại bằng FP64 <=1e-3 và reference <=1e-6.
+Chưa đạt ở budget cố định phải ghi coverage gap. Shape lớn có marginal toàn
+bộ đo bằng GPU FP32 để chẩn đoán, nhưng không có chứng nhận marginal toàn bộ
+bằng FP64 hoặc reference solve đầy đủ. HVP chỉ tính parity đạt nếu cả hai
+CG xác nhận residual <=max(1e-6, 1e-6*initial residual); nếu chưa đạt tại cap,
+ghi số đo như diagnostic và coverage gap, không tính là HVP pass.
+
+### Chạy trên server
+
+```bash
+conda activate minh
+cd /home/doanpt/minh.nd/flash-opw
+git pull --ff-only && env CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 outputs/venv-author-flashsinkhorn/bin/python -u scripts/run_author_step4.py
+```
+
+Dùng nguyên venv thống nhất của bước 3, GeomLoss 0.3.1; không cài lại package.
+Runner in số case và heartbeat mỗi 30 giây, kiểm tra hash trước/sau và sau mỗi
+process. Lỗi số học vẫn được lưu và runner chạy tiếp; thiếu report hoặc OOM
+thì dừng, ghi rõ case chưa chạy. ZIP vẫn được tạo khi có lỗi trong lượt chạy.
+
+Trạng thái tổng:
+
+- `passed_checks` (exit 0): mọi assertion trong phạm vi đều đạt, không coverage gap.
+- `passed_checks_with_coverage_gaps` (exit 3): mọi assertion đã thực hiện đạt,
+  còn giới hạn chứng nhận hội tụ/CG hoặc lấy mẫu. Với inventory có shape lớn,
+  đây là trạng thái dự kiến nếu không có assertion lỗi; không gọi full correctness pass.
+- `failed`/`interrupted` (exit 1): có assertion lỗi, lỗi thực thi/integrity,
+  hoặc người dùng dừng. Không bỏ case lỗi để đổi trạng thái thành pass.
+
+Lỗi/skip OTT-Hessian của bước 3 vẫn là vấn đề riêng chưa được xử lý bởi runner này.
+
+### Chuyển và audit artifact
+
+Sau khi chạy xong, commit/push ZIP bước 4 mới nhất:
+
+```bash
+(
+set -e
+cd /home/doanpt/minh.nd/flash-opw
+artifact=$(outputs/venv-author-flashsinkhorn/bin/python -c 'from pathlib import Path; p=list(Path("outputs").glob("author_flashsinkhorn_step4_*.zip")); assert p, "No step 4 ZIP found"; print(max(p, key=lambda x:x.stat().st_mtime).as_posix())')
+git add -f -- "$artifact"
+git commit --only -m "Upload author FlashSinkhorn step 4 GPU evidence" -- "$artifact"
+git push origin main
+)
+```
+
+Sau khi user push: pull, audit SHA-256 và source/profile/legacy/validator hashes,
+tái sinh input theo hash, tính lại sai số từ arrays lưu; chạy lại reference
+CPU FP64 và hệ KKT cho dense. Không chạy code trong ZIP. Auditor không thay
+cho chạy lại CUDA và không chứng nhận toàn bộ output shape lớn chỉ từ lấy mẫu.
+Sao lưu ZIP local rồi gỡ ZIP khỏi main và push cleanup theo quy trình đã thống nhất.
+
+```powershell
+.venv-baselines/Scripts/python.exe scripts/audit_author_step4.py outputs/author_flashsinkhorn_step4_<timestamp>_<pid>.zip --output outputs/step4-audit.json
+```
+
+Kiểm tra local đã bao gồm đối chiếu lịch cập nhật bằng CPU, đơn vị damping,
+phát hiện arrays/tolerance bị sửa và runner giữ case lỗi khi tổng hợp/bundle.
+Chưa có kết quả GPU bước 4 để ghi vào báo cáo thực nghiệm.

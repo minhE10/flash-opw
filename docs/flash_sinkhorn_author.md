@@ -401,4 +401,10 @@ Lượt full bước 3 qua `9bd2535` đã được
 401 passed, 1 failed, 2 skipped, không collection error. 19 file ngoài HVP
 parity đạt; file HVP còn lỗi baseline KeOps và thiếu API JAX. CG fixture
 hội tụ cả hai đường và 12/12 case độc lập đạt. Trạng thái tổng vẫn `failed`.
-ZIP đã sao lưu local và gỡ khỏi main; bước 4–6 chưa thực hiện.
+ZIP đã sao lưu local và gỡ khỏi main. Bước 4 đã có runner
+`scripts/run_author_step4.py` cho 111 trường hợp correctness, cùng auditor
+CPU FP64 từ arrays/input hashes. Lệnh chạy và chuyển ZIP nằm ở
+[hướng dẫn bước 4](flash_sinkhorn_author_validation_plan.md#thực-thi-bước-4-correctness-mở-rộng-và-đối-chiếu-bản-cũ).
+Chưa có kết quả GPU bước 4. Lượt này phân biệt lịch symmetric native với
+adapter khớp lịch, hai quy ước gradient và đơn vị damping HVP; shape lớn chỉ
+kiểm tra các hàng/cột được chọn và lưu riêng coverage gap. Bước 5–6 chưa chạy.
