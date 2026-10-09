@@ -28,7 +28,8 @@ Wheel GeomLoss 0.3.1 đã được tải và kiểm tra ở local: có các impo
 `sinkhorn_tensorized`, `softmin_tensorized`, `dampening` dưới `geomloss._legacy`.
 File `requirements-author-validation.txt` ghim version và SHA-256 wheel.
 Chỉ cài package này vào venv author với `--no-deps`; lượt GPU sau cần chạy lại
-cả năm file import GeomLoss bên ngoài. Chưa có kết quả GPU với dependency mới.
+cả năm file import GeomLoss bên ngoài. Kết quả GPU với dependency mới đã được
+audit ở phần cập nhật bên dưới.
 
 Ba skip OTT-Hessian vẫn là khoảng trống coverage riêng. Checkout public đã
 kiểm tra tại `7eb189fe39982f587da935044480655b65939637` có module KeOps nhưng
@@ -63,3 +64,45 @@ Bản local có cùng hash nằm trong thư mục ignored
 ở commit `3499c3f` sau audit. File vẫn tồn tại trong lịch sử Git.
 Theo yêu cầu người dùng, những file server cần xem tiếp sẽ được chuyển bằng
 commit/push, pull để kiểm tra, giữ bản local rồi gỡ khỏi repo sau kiểm tra.
+
+## Cập nhật: kiểm tra lại với GeomLoss 0.3.1
+
+Artifact `author_flashsinkhorn_extended_20261009_174242_3217238.zip` nhận qua
+commit `c9d999c` xác nhận **64/64 passed, 0 failed/error/skip** trên đúng năm
+file được chọn; trạng thái audit là **`passed_subset_compatibility`**, scope
+`subset`, không có lỗi audit. Các checksum, số test tính lại từ JUnit,
+inventory đã chọn và metadata hash profile khớp. Source trước/sau chạy đều
+ghi `verified`, đủ 131 file tại commit tác giả đã ghim.
+
+| File | Passed |
+|---|---:|
+| `test_autograd_semantics.py` | 21 |
+| `test_geomloss_sinkhorn_triton.py` | 10 |
+| `test_geomloss_vs_triton.py` | 4 |
+| `test_half_cost.py` | 7 |
+| `test_unbalanced_sinkhorn.py` | 22 |
+
+Metadata cả năm file ghi GeomLoss **0.3.1**, Torch **2.11.0+cu128**,
+Triton **3.6.0**, RTX 5080. Ba nonpass do thiếu `_legacy` của lượt trước
+đã được kiểm tra lại thành công; hai file còn lại cũng đạt sau đổi dependency.
+Không sửa test, tolerance hoặc kernel để xử lý lỗi dependency này.
+
+12/12 case độc lập chạy lại đều đạt, mọi CG của nhóm này xác nhận hội tụ.
+Max GPU marginal L1 `1.1646306832986675e-7`, plan relative L2
+`2.1062109392902477e-7`, HVP relative L2 `4.888004097285891e-7`.
+Các giá trị này bằng lượt trước với cùng input/schedule; đây là bằng chứng
+correctness trên những case đã kiểm tra, không phải benchmark tốc độ.
+
+Còn một warning tại `test_flashstyle_symmetric_early_stopping`: phép kiểm tra
+thay đổi potentials chưa xác nhận hội tụ tới threshold `0.001` trong 202 cập
+nhật. Assertion của test đạt; warning không được lọc bỏ và không phải chứng
+nhận marginal residual. Ba skip OTT-Hessian trước đó nằm ngoài phạm vi lần
+chạy lại này, vẫn là coverage gaps. Không cộng hai lượt khác environment để
+gọi là một lượt full validation hoàn toàn đạt.
+
+SHA-256 ZIP mới:
+`5e5b3a7e92b090d2d62d75095132127b27c8308cacd3d44e28b429d3887e220f`.
+Bản sao local có cùng SHA-256 cùng audit JSON, summary, numerics và pip freeze
+nằm trong thư mục ignored `outputs/author_flashsinkhorn_diagnosis_c9d999c/`.
+ZIP được gỡ khỏi nội dung nhánh main sau audit và sao lưu; lịch sử Git vẫn
+giữ commit upload. Máy local chỉ đọc bằng chứng đã lưu, không chạy lại CUDA.

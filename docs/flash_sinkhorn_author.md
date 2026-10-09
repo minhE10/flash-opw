@@ -366,3 +366,13 @@ trong phạm vi đã chọn, trạng thái là **`passed_subset_compatibility`**
 không phải `passed_extended_compatibility`. Auditor phân biệt hai phạm vi và
 chỉ yêu cầu CG fixture API nếu đã chọn file API; 12 case độc lập vẫn bắt buộc.
 Ba skip OTT-Hessian của lượt trước chưa được xử lý bằng lượt GeomLoss này.
+
+Artifact kiểm tra lại `author_flashsinkhorn_extended_20261009_174242_3217238`
+đã nhận qua commit `c9d999c` và audit thành công: **64/64 test đạt** trên năm
+file đã chọn, **12/12 case FP64 độc lập đạt**, mọi CG trong nhóm độc lập hội
+tụ. Checksum, JUnit và metadata source/profile khớp; environment xác nhận
+GeomLoss 0.3.1. Kết quả là `passed_subset_compatibility`, không phải một lượt
+full mới. Còn một warning early stopping chưa xác nhận hội tụ trong 202 cập
+nhật ở fixture tương ứng; ba skip OTT-Hessian vẫn chưa được kiểm chứng.
+ZIP đã lưu local cùng audit rồi được gỡ khỏi repo theo quy trình chuyển file.
+Chi tiết và SHA-256 nằm trong báo cáo audit được liên kết ở trên.
