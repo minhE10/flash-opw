@@ -10,6 +10,7 @@ from scripts.audit_author_extended_validation import audit
 from scripts.author_flashsinkhorn_profiles import expected_entries
 from scripts.author_flashsinkhorn_sources import load_manifest
 from scripts.run_author_extended_validation import summarize
+from scripts.author_ott_hessian import PIN
 
 
 @pytest.mark.parametrize("mutation,expected", [(None, "passed_extended_compatibility"),
@@ -18,7 +19,12 @@ from scripts.run_author_extended_validation import summarize
                                              ("cg", "failed_audit"), ("numerics", "failed_audit"),
                                              ("subset", "passed_subset_compatibility"),
                                              ("subset_as_full", "failed_audit"),
-                                             ("unknown_subset", "failed_audit")])
+                                             ("unknown_subset", "failed_audit"),
+                                             ("dependency", "passed_extended_compatibility"),
+                                             ("dependency_tampered", "failed_audit"),
+                                             ("dependency_missing_after", "failed_audit"),
+                                             ("dependency_fallback", "failed_audit"),
+                                             ("geomloss_changed", "failed_audit")])
 def test_saved_evidence_audit_recomputes_counts_convergence_and_checksums(tmp_path, mutation, expected):
     manifest = load_manifest()
     files = sorted(Path(name).name for name in manifest["files"]
@@ -33,6 +39,9 @@ def test_saved_evidence_audit_recomputes_counts_convergence_and_checksums(tmp_pa
     source = {"status":"verified", "commit":manifest["commit"], "files_checked":len(manifest["files"])}
     profile = {"files":expected_entries(), "upstream_commit":manifest["commit"]}
     runs = []
+    with_dependency = mutation in ("dependency", "dependency_tampered", "dependency_missing_after", "dependency_fallback", "geomloss_changed")
+    dependency = {"status":"verified","errors":[],"commit":PIN["commit"],"repository":PIN["repository"],
+                  "files_checked":len(PIN["files"]),"files_sha256":PIN["files"]}
     for index, name in enumerate(files):
         skipped = mutation == "skip" and index == 0
         prefix = name.removesuffix(".py")
@@ -46,7 +55,23 @@ def test_saved_evidence_audit_recomputes_counts_convergence_and_checksums(tmp_pa
                                       "profile_after_tests":{"status":"profile_verified"},
                                       "test_files":["torch-ext/flash_sinkhorn/testing/"+name],"status":status,"tests":counts})
         put(prefix+"/kernel-profile.json", profile)
+        if with_dependency and name == "test_hvp_parity.py":
+            record = json.loads(payload[prefix+"/validation.json"])
+            record.update(ott_hessian=dependency, ott_hessian_after_tests=dependency,
+                external_hvp=[{"requested_keops":True,"used_keops":mutation != "dependency_fallback"}])
+            put(prefix+"/validation.json", record)
     summary = {"source":source,"source_after_tests":source,"expected_files":files,"runs":runs,"cg_cap":256}
+    if with_dependency:
+        summary.update(ott_hessian_requested="/synthetic/OTT-Hessian",ott_hessian=dependency,
+                       ott_hessian_after_tests=dependency,geomloss_requirement="0.3.1",
+                       geomloss_before_tests={"required":"0.3.1","actual":"0.3.1","status":"verified"},
+                       geomloss_after_tests={"required":"0.3.1","actual":"0.3.1","status":"verified"})
+        if mutation == "dependency_tampered":
+            summary["ott_hessian_after_tests"] = dict(dependency,commit="wrong-pin")
+        if mutation == "dependency_missing_after":
+            del summary["ott_hessian_after_tests"]
+        if mutation == "geomloss_changed":
+            summary["geomloss_after_tests"]["actual"] = "0.2.6"
     if is_subset:
         summary.update(scope="subset", suite_inventory=inventory)
     summary.update(summarize(runs, "passed", files, scope="subset" if is_subset else "full"))

@@ -16,10 +16,12 @@ try:
     from .author_flashsinkhorn_profiles import expected_entries
     from .author_flashsinkhorn_sources import load_manifest
     from .run_author_extended_validation import summarize
+    from .author_ott_hessian import PIN as OTT_HESSIAN_PIN
 except ImportError:
     from author_flashsinkhorn_profiles import expected_entries
     from author_flashsinkhorn_sources import load_manifest
     from run_author_extended_validation import summarize
+    from author_ott_hessian import PIN as OTT_HESSIAN_PIN
 
 
 def audit(path):
@@ -53,6 +55,22 @@ def audit(path):
             record = summary.get(key, {})
             if record.get("status") != "verified" or record.get("commit") != manifest["commit"] or record.get("files_checked") != len(manifest["files"]):
                 errors.append(f"Missing or incompatible source verification record: {key}")
+        dependency_requested = "ott_hessian_requested" in summary
+        def check_dependency(record, context):
+            if (record.get("status") != "verified" or record.get("errors") != [] or
+                record.get("commit") != OTT_HESSIAN_PIN["commit"] or
+                record.get("repository") != OTT_HESSIAN_PIN["repository"] or
+                record.get("files_checked") != len(OTT_HESSIAN_PIN["files"]) or
+                record.get("files_sha256") != OTT_HESSIAN_PIN["files"]):
+                errors.append(f"External HVP dependency does not match pin: {context}")
+        if dependency_requested:
+            for key in ("ott_hessian", "ott_hessian_after_tests"):
+                check_dependency(summary.get(key, {}), key)
+        if "geomloss_requirement" in summary:
+            required = summary["geomloss_requirement"]
+            for key in ("geomloss_before_tests", "geomloss_after_tests"):
+                if summary.get(key) != {"required":required,"actual":required,"status":"verified"}:
+                    errors.append(f"GeomLoss environment requirement not verified: {key}")
         def check_profile(prefix):
             profile = read_json(prefix + "/kernel-profile.json")
             if profile.get("files") != expected_entries() or profile.get("upstream_commit") != manifest["commit"]:
@@ -61,6 +79,14 @@ def audit(path):
         for run in summary["runs"]:
             prefix = run["file"].removesuffix(".py")
             record = read_json(prefix + "/validation.json")
+            if "ott_hessian" in record and not dependency_requested:
+                errors.append("External HVP dependency missing from aggregate provenance")
+            if run["file"] == "test_hvp_parity.py" and dependency_requested:
+                for key in ("ott_hessian", "ott_hessian_after_tests"):
+                    check_dependency(record.get(key, {}), prefix + "/" + key)
+                observed = record.get("external_hvp", [])
+                if not observed or any(r.get("requested_keops") and r.get("used_keops") is not True for r in observed):
+                    errors.append("Original external HVP test lacks observed KeOps backend evidence")
             cases = list(ET.fromstring(zipped.read(prefix + "/pytest.xml")).iter("testcase"))
             counts = {"total": len(cases), "failed": sum(c.find("failure") is not None for c in cases),
                       "errors": sum(c.find("error") is not None for c in cases),

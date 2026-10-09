@@ -73,7 +73,8 @@ thí nghiệm liên quan. Không kết luận kết quả cũ sai chỉ từ kh�
 - Chi tiết checksum, traceback, bảng budget và giới hạn bằng chứng nằm ở
   [báo cáo audit bước 1–2](../reports/author_flashsinkhorn_steps12_audit_20261009.md).
   ZIP đã sao lưu local và gỡ khỏi main theo quy trình chuyển file. Trạng thái
-  tổng vẫn `failed_or_incomplete` do bước 1; bước 3–6 chưa thực hiện.
+  tổng vẫn `failed_or_incomplete` do bước 1. Runner bước 3 đã chuẩn bị; kết quả
+  GPU lượt full mới đang chờ server. Bước 4–6 chưa thực hiện.
 - Kiểm tra local: 48 test đạt (reference FP64, phát hiện source/dependency bị
   sửa, accounting và runner); 131 file tác giả vẫn verified. 22 hash dependency
   được đối chiếu trực tiếp với Git blobs tại pin, không chỉ với working tree.
@@ -128,3 +129,55 @@ cùng manifest SHA-256. Các trạng thái:
 
 Kết quả GPU bước 1–2 đã được audit trong báo cáo liên kết ở trên. Lệnh này
 dùng để tái chạy; nó không sửa lỗi baseline hoặc bổ sung API JAX còn thiếu.
+
+## Thực thi bước 3: một lượt full trong môi trường thống nhất
+
+Runner chạy toàn bộ 20 file từ inventory ghim, mỗi file một process để giải
+phóng VRAM, cùng interpreter/environment. Trước/sau kiểm tra GeomLoss 0.3.1
+và hash checkout OTT-Hessian bước 1; truyền dependency này cho file HVP gốc.
+Không cài package hoặc sửa dependency. Core dùng profile RTX 5080, cap CG 256
+chỉ cho fixture double-backward đã kiểm chứng; 12 case FP64 độc lập vẫn bắt buộc.
+Cảnh báo early stopping ở budget gốc vẫn được lưu, kết quả chẩn đoán bước 2
+không thay budget test upstream.
+
+Trên server GPU 1:
+
+```bash
+conda activate minh
+cd /home/doanpt/minh.nd/flash-opw
+git pull --ff-only && env CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 outputs/venv-author-flashsinkhorn/bin/python -u scripts/run_author_extended_validation.py --cg-cap 256 --require-geomloss-version 0.3.1 --ott-hessian-root outputs/author-dependencies/OTT-Hessian --output "outputs/author_flashsinkhorn_step3_$(date +%Y%m%d_%H%M%S)_$$"
+```
+
+Nếu checkout dependency bị thiếu/sai hash hoặc phiên bản GeomLoss khác yêu
+cầu, runner dừng trước phép đo GPU và lưu lỗi. Không bỏ option để né preflight.
+Nếu nguồn/môi trường hợp lệ, lỗi test HVP baseline không chặn chạy các file
+còn lại. Lỗi layout KeOps và hai skip thiếu API JAX đã ghi ở bước 1 có thể
+tiếp tục xuất hiện. Khi đó trạng thái tổng phải là `failed`, không chuyển
+thành `passed_with_coverage_gaps` vì ngoài skip còn có test lỗi. Đánh giá từng
+file và số test thực tế sau audit, không dự đoán số pass từ các lượt trước.
+
+Kết thúc có ZIP `outputs/author_flashsinkhorn_step3_<timestamp>_<pid>.zip`.
+Để chuyển ZIP mới nhất thuộc bước 3 bằng quy trình Git đã thống nhất:
+
+```bash
+(
+set -e
+cd /home/doanpt/minh.nd/flash-opw
+artifact=$(outputs/venv-author-flashsinkhorn/bin/python -c 'from pathlib import Path; p=list(Path("outputs").glob("author_flashsinkhorn_step3_*.zip")); assert p, "No step 3 ZIP found"; print(max(p, key=lambda x:x.stat().st_mtime).as_posix())')
+git add -f -- "$artifact"
+git commit --only -m "Upload author FlashSinkhorn step 3 GPU evidence" -- "$artifact"
+git push origin main
+)
+```
+
+Sau khi user push: pull ZIP, audit checksum/JUnit/source/profile/dependency,
+CG fixture và 12 case độc lập; sao lưu local rồi gỡ ZIP khỏi main và push
+cleanup. Không gộp lượt này với các lượt subset cũ. Lệnh audit local:
+
+```powershell
+.venv-baselines/Scripts/python.exe scripts/audit_author_extended_validation.py outputs/author_flashsinkhorn_step3_<timestamp>_<pid>.zip
+```
+
+Audit chấp nhận bằng chứng một lượt test có lỗi nếu accounting/nguồn đúng,
+nhưng vẫn trả trạng thái test `failed`; `failed_audit` là bằng chứng không đủ
+hoặc không khớp. Bước 3 chưa thể gọi là full pass khi còn lỗi/skip baseline.

@@ -6,6 +6,7 @@ edit upstream tests, suppress warnings, or terminate other GPU processes.
 import argparse
 from datetime import datetime, timezone
 import hashlib
+from importlib import metadata
 import json
 import os
 from pathlib import Path
@@ -18,9 +19,19 @@ import zipfile
 try:
     from .author_flashsinkhorn_profiles import prepare_profile, verify_profile
     from .author_flashsinkhorn_sources import ROOT, load_manifest, verify
+    from .author_ott_hessian import inspect as inspect_dependency
 except ImportError:  # Direct script execution.
     from author_flashsinkhorn_profiles import prepare_profile, verify_profile
     from author_flashsinkhorn_sources import ROOT, load_manifest, verify
+    from author_ott_hessian import inspect as inspect_dependency
+
+
+def check_geomloss_version(required):
+    """Read the active interpreter's distribution; never install or change it."""
+    actual = metadata.version("geomloss")
+    if actual != required:
+        raise ValueError(f"GeomLoss {required} required in this environment; found {actual}")
+    return {"required": required, "actual": actual, "status": "verified"}
 
 
 def summarize(runs, independent, expected_files, scope="full"):
@@ -50,6 +61,8 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--test-file", action="append", help="Repeat to rerun selected pinned test basenames; default is all 20 files")
     parser.add_argument("--cg-cap", type=int, default=256, help="Previously validated scoped fixture budget (default 256)")
+    parser.add_argument("--ott-hessian-root", type=Path, help="Existing pinned public checkout for the original HVP parity file")
+    parser.add_argument("--require-geomloss-version", help="Fail before GPU tests if this interpreter has a different GeomLoss version")
     args = parser.parse_args()
     if args.cg_cap <= 64:
         parser.error("--cg-cap must exceed the original fixture budget of 64")
@@ -89,6 +102,10 @@ def main():
                                "Matrix-apply autotuning is disabled by the compatibility profile.",
                                "Author skips remain coverage gaps; no dependency is auto-installed.",
                                "JUnit totals may include module-level skip/collection-error entries."]}
+    if args.ott_hessian_root is not None:
+        summary["ott_hessian_requested"] = str(args.ott_hessian_root.resolve())
+    if args.require_geomloss_version is not None:
+        summary["geomloss_requirement"] = args.require_geomloss_version
 
     def save():
         (output / "suite-summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -143,6 +160,13 @@ def main():
         except (OSError, subprocess.TimeoutExpired) as exc:
             (output / name).write_text(str(exc), encoding="utf-8")
     try:
+        if args.require_geomloss_version is not None:
+            summary["geomloss_before_tests"] = check_geomloss_version(args.require_geomloss_version)
+        if args.ott_hessian_root is not None:
+            summary["ott_hessian"] = inspect_dependency(args.ott_hessian_root)
+            if summary["ott_hessian"]["status"] != "verified":
+                raise ValueError("OTT-Hessian source verification failed before tests")
+        save()
         independent_dir = output / "independent"
         independent_dir.mkdir()
         implementation, summary["independent_profile"] = prepare_profile(independent_dir)
@@ -162,6 +186,8 @@ def main():
                        "--gpu", "--suite", "full", "--test-file", name, "--kernel-profile", "rtx5080", "--output", run_dir]
             if name == "test_samples_loss_api.py":
                 command += ["--hvp-max-cg-iter", args.cg_cap]
+            if name == "test_hvp_parity.py" and args.ott_hessian_root is not None:
+                command += ["--ott-hessian-root", args.ott_hessian_root.resolve()]
             code = run(command, output / (name + ".log"))
             path = run_dir / "validation.json"
             result = json.loads(path.read_text()) if path.exists() else {}
@@ -175,6 +201,12 @@ def main():
         summary["source_after_tests"] = verify()
         if summary["source_after_tests"]["status"] != "verified":
             summary["status"] = "failed"
+        if args.ott_hessian_root is not None:
+            summary["ott_hessian_after_tests"] = inspect_dependency(args.ott_hessian_root)
+            if summary["ott_hessian_after_tests"]["status"] != "verified":
+                summary["status"] = "failed"
+        if args.require_geomloss_version is not None:
+            summary["geomloss_after_tests"] = check_geomloss_version(args.require_geomloss_version)
     except KeyboardInterrupt:
         summary.update(status="interrupted", error="User interrupted; unfinished files are not validated")
     except Exception as exc:

@@ -8,6 +8,63 @@ import sys
 import pytest
 
 from scripts.run_author_extended_validation import summarize
+from scripts import run_author_extended_validation as runner
+
+
+def test_geomloss_requirement_rejects_other_version(monkeypatch):
+    monkeypatch.setattr(runner.metadata, "version", lambda name: "0.2.6")
+    with pytest.raises(ValueError, match="0.3.1 required.*0.2.6"):
+        runner.check_geomloss_version("0.3.1")
+
+
+def test_full_run_keeps_external_failure_and_continues_all_20_files(tmp_path, monkeypatch):
+    # Simulate child boundaries: verifies orchestration, never claims a GPU pass.
+    commands = []
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    monkeypatch.setattr(runner, "verify", lambda: {"status":"verified"})
+    monkeypatch.setattr(runner, "inspect_dependency", lambda root: {"status":"verified"})
+    monkeypatch.setattr(runner.metadata, "version", lambda name: "0.3.1")
+    monkeypatch.setattr(runner, "prepare_profile", lambda root: (root/"implementation-rtx5080", {}))
+    monkeypatch.setattr(runner, "verify_profile", lambda root: {"status":"profile_verified"})
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "1")
+    dependency = tmp_path/"dependency"
+    output = tmp_path/"outputs"/"full"
+    monkeypatch.setattr(sys, "argv", ["runner", "--output", str(output),
+        "--ott-hessian-root", str(dependency), "--require-geomloss-version", "0.3.1"])
+    monkeypatch.setattr(runner.subprocess, "run", lambda command, **kwargs:
+        subprocess.CompletedProcess(command, 0, stdout="simulated", stderr=""))
+    class Process:
+        def __init__(self, command, **kwargs):
+            commands.append(command)
+            self.pid, self.stdout, self.code = 123, iter([]), 0
+            target = Path(command[command.index("--output")+1])
+            if any("check_author_flashsinkhorn_numerics.py" in arg for arg in command):
+                target.write_text(json.dumps({"status":"passed"}))
+            else:
+                name = command[command.index("--test-file")+1]
+                failed = name == "test_hvp_parity.py"
+                self.code = int(failed)
+                target.mkdir()
+                (target/"validation.json").write_text(json.dumps({
+                    "status":"failed" if failed else "passed_compatibility", "source":{"status":"verified"},
+                    "tests":{"total":1,"passed":int(not failed),"failed":int(failed),"errors":0,"skipped":0}}))
+        def wait(self): return self.code
+        def poll(self): return self.code
+    monkeypatch.setattr(runner.subprocess, "Popen", Process)
+    assert runner.main() == 1
+    summary = json.loads((output/"suite-summary.json").read_text())
+    assert summary["scope"] == "full" and len(summary["runs"]) == 20
+    assert summary["failed_files"] == ["test_hvp_parity.py"] and summary["missing_files"] == []
+    assert summary["tests"]["passed"] == 19 and summary["tests"]["failed"] == 1
+    for command in commands[1:]:
+        name = command[command.index("--test-file")+1]
+        assert ("--ott-hessian-root" in command) == (name == "test_hvp_parity.py")
+        if name == "test_hvp_parity.py":
+            assert command[command.index("--ott-hessian-root")+1] == str(dependency.resolve())
+        if name == "test_samples_loss_api.py":
+            assert command[command.index("--hvp-max-cg-iter")+1] == "256"
+    assert summary["geomloss_before_tests"] == summary["geomloss_after_tests"]
+    assert output.with_suffix(".zip").exists()
 
 
 def test_selected_pass_is_labelled_as_subset():

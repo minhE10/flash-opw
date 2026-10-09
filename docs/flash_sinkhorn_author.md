@@ -390,3 +390,11 @@ early stopping đạt tiêu chí marginal/reference sau 11382 cập nhật trên
 test HVP KeOps lỗi layout tensor trong baseline OTT-Hessian, hai test JAX
 thiếu API nên skip. Trạng thái tổng vẫn `failed_or_incomplete`; không có
 parity HVP ngoài đạt từ lượt này. ZIP đã sao lưu local và gỡ khỏi main.
+
+Bước 3 dùng `run_author_extended_validation.py` không chọn subset, thêm
+`--require-geomloss-version 0.3.1` và `--ott-hessian-root` trỏ checkout đã
+ghim ở bước 1. Runner và auditor ghi/kiểm tra dependency trước/sau, giữ lỗi
+baseline thật trong kết quả, chạy tiếp các file còn lại. Lệnh đầy đủ và cách
+chuyển ZIP nằm trong [kế hoạch bước 3](flash_sinkhorn_author_validation_plan.md#thực-thi-bước-3-một-lượt-full-trong-môi-trường-thống-nhất).
+Chưa có kết quả GPU cho lượt full mới này; local chỉ kiểm tra orchestration
+và audit bằng dữ liệu mô phỏng.
