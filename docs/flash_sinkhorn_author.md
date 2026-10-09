@@ -249,3 +249,76 @@ cùng input/weights/cost/schedule, rồi xây adapter FlashOPW dùng lõi tác g
 Kiểm tra lại correctness/hội tụ trước khi chạy các nhóm accuracy và timing.
 Sai khác runtime so paper hoặc implementation khác repo chưa tự chứng minh
 kết quả cũ sai; cần xác định sai khác bằng phép đối chiếu này.
+
+### Validation mở rộng sau core/CG
+
+Đã thêm workflow `scripts/run_author_extended_validation.py` để kiểm tra phần
+còn lại của FlashSinkhorn author trước khi chuyển sang FlashOPW:
+
+1. Kiểm tra nguồn ghim commit và tạo profile RTX 5080 trong output riêng.
+2. Chạy **12 case độc lập**: ba shape `(17,23,3)`, `(32,24,16)`, `(37,29,33)`;
+   symmetric/alternating, full/half squared cost, weights không đều. Input được
+   tạo trên CPU rồi làm tròn FP32, reference dùng chính giá trị đó ở CPU FP64.
+   So plan với một phép giải log-domain độc lập, kiểm tra marginal residual,
+   apply matrix cả hai trục, và so HVP với phép giải trực tiếp hệ KKT FP64.
+3. Chạy **toàn bộ 20 file test** của commit tác giả, mỗi file một process riêng.
+   Điều này bao gồm chạy lại core để gói artifact mới có đầy đủ bằng chứng.
+   Chỉ fixture double-backward đã xác nhận trước đó dùng cap 256 qua plugin;
+   các tolerance, damping và test khác giữ nguyên.
+4. Kiểm tra hash sau chạy, lưu environment, log, JSON/JUnit XML, diff/hash của
+   profile, rồi tạo ZIP cùng manifest SHA-256. ZIP không chứa venv/cache/cây
+   implementation lặp lại. Có heartbeat mỗi 30 giây khi process con còn chạy.
+
+Reference mới nằm ngoài cây tác giả, tại `scripts/author_flashsinkhorn_fp64.py`.
+Nó không import solver/reference/CG của tác giả. HVP được suy ra bằng cách vi
+phân điều kiện marginal, giải hệ tuyến tính đầy đủ bằng `torch.linalg.solve`,
+rồi tính đạo hàm của plan và gradient. Product đối chứng dùng cùng `tau2=1e-5`
+với GPU; đây là HVP implicit có damping. Unit test riêng dùng `tau2=0`, so với
+sai phân hữu hạn của gradient nghiệm OT đã hội tụ, đồng thời kiểm tra tuyến
+tính/đối xứng của product có damping. HVP GPU được so tại chính potentials
+OTT đã làm tròn mà kernel nhận; phép kiểm tra plan/hội tụ được thực hiện riêng.
+Các case nhỏ này không thay validation toàn sweep hoặc benchmark hiệu năng.
+
+Chạy trên server bằng môi trường author đã dùng thành công:
+
+```bash
+conda activate minh
+cd /home/doanpt/minh.nd/flash-opw
+git pull --ff-only
+CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 \
+  outputs/venv-author-flashsinkhorn/bin/python -u \
+  scripts/run_author_extended_validation.py
+```
+
+Không cần cài lại Torch hoặc chạy lại sweep chọn CG. Script không tự cài thêm
+dependency. Bộ full có test dùng GeomLoss, KeOps, JAX GPU/OTT-JAX và checkout
+`3rd-party/OTT-Hessian`; các dependency thiếu có thể dẫn đến skip. Upstream yêu
+cầu `geomloss>=0.3` trong dev extras và một test import
+`geomloss._legacy.sinkhorn_samples`: phiên bản cũ có thể gây **collection error**,
+không phải sai số kernel. Từng lỗi/skip và phiên bản package được giữ trong
+artifact, không sửa test để bỏ qua. Profile chỉ thay matrix apply; bộ full vẫn
+có thể phát hiện launch vượt tài nguyên ở kernel khác. Một số test unbalanced
+dùng 20.000 vòng nên thời gian full có thể dài hơn nhiều so với core.
+
+Trạng thái cuối:
+
+- `passed_extended_compatibility` (exit 0): numerics đạt, cả 20 file hoàn tất,
+  không failure/error/skip, source/profile kiểm tra đạt.
+- `passed_with_coverage_gaps` (exit 3): phần đã chạy đạt nhưng còn skip; chưa
+  được gọi là full validation. Module toàn skip ghi `not_validated_all_skipped`.
+- `failed` (exit 1): có lỗi, numerics không đạt hoặc thiếu file chưa chạy.
+
+Đường dẫn ZIP được in ở cuối. Sau khi đưa ZIP về máy local, có thể audit mà
+không giải nén/chạy code trong artifact:
+
+```powershell
+.venv-baselines/Scripts/python.exe scripts/audit_author_extended_validation.py outputs/author_flashsinkhorn_extended_<timestamp>_<pid>.zip
+```
+
+Auditor tính lại checksum, số test từ XML, kiểm tra inventory theo commit,
+metadata hash của profile, residual/tham số CG và metrics độc lập. Đây là kiểm
+tra bằng chứng đã lưu, không phải chạy lại CUDA hay xác thực danh tính server.
+Trạng thái full đạt vẫn phải đọc cùng warnings của từng file: assertion của
+upstream không bắt buộc hội tụ của mọi lời gọi CG. Kiểm tra CG nghiêm ngặt mới
+áp dụng cho fixture đã chỉ định và 12 case độc lập; không suy rộng ra mọi HVP.
+**Chưa có kết quả GPU cho workflow mở rộng này trên máy local CPU.**

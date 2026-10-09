@@ -37,6 +37,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gpu", action="store_true")
     parser.add_argument("--suite", choices=("core", "full", "regressions", "cg"), default="core")
+    parser.add_argument("--test-file", help="Run one pinned test_*.py file from the full suite in an isolated process.")
     parser.add_argument("--hvp-max-cg-iter", type=int,
                         help="Increase only the 64-step double-backward fixture budget and require CG convergence on both paths.")
     parser.add_argument("--kernel-profile", choices=("upstream", "rtx5080"), default="upstream",
@@ -46,6 +47,12 @@ def main() -> int:
                         help="Maximum seconds for imports and CUDA environment checks (default: 180).")
     parser.add_argument("--output", type=Path, default=ROOT / "outputs" / "author_flashsinkhorn_validation")
     args = parser.parse_args()
+    if args.test_file is not None:
+        available = {p.name for p in (IMPLEMENTATION / "torch-ext/flash_sinkhorn/testing").glob("test_*.py")}
+        if args.suite != "full" or args.test_file not in available:
+            parser.error("--test-file requires --suite full and the basename of a pinned author test file")
+        if args.hvp_max_cg_iter is not None and args.test_file != "test_samples_loss_api.py":
+            parser.error("The scoped CG fixture is only in test_samples_loss_api.py")
     if args.preflight_timeout <= 0:
         parser.error("--preflight-timeout must be positive")
     if args.suite == "cg" and args.hvp_max_cg_iter is None:
@@ -132,18 +139,25 @@ def main() -> int:
     env.setdefault("OPENBLAS_NUM_THREADS", "2")
     probe = """
 import json, pathlib, sys, torch, triton
+from importlib.metadata import version, PackageNotFoundError
 assert torch.cuda.is_available(), 'CUDA PyTorch required'
 assert torch.cuda.device_count() == 1, 'Exactly one visible GPU required'
 import flash_sinkhorn
 package = pathlib.Path(flash_sinkhorn.__file__).resolve()
 assert pathlib.Path(sys.argv[1]).resolve() in package.parents, str(package)
 free_bytes, total_bytes = torch.cuda.mem_get_info(0)
+dependencies = {}
+for name in ('pytest', 'numpy', 'geomloss', 'pykeops', 'jax', 'jaxlib', 'ott-jax', 'lineax'):
+    try:
+        dependencies[name] = version(name)
+    except PackageNotFoundError:
+        dependencies[name] = None
 print(json.dumps({'python': sys.version, 'torch': torch.__version__,
     'triton': triton.__version__, 'cuda': torch.version.cuda,
     'gpu': torch.cuda.get_device_name(0), 'package': str(package),
     'compute_capability': list(torch.cuda.get_device_capability(0)),
     'shared_memory_per_block_optin': getattr(torch.cuda.get_device_properties(0), 'shared_memory_per_block_optin', None),
-    'version': flash_sinkhorn.__version__,
+    'version': flash_sinkhorn.__version__, 'dependencies': dependencies,
     'free_vram_mib': free_bytes / 2**20, 'total_vram_mib': total_bytes / 2**20}))
 """
     summary["phase"] = "checking_gpu"
@@ -179,6 +193,8 @@ print(json.dumps({'python': sys.version, 'torch': torch.__version__,
     test_root = implementation / "torch-ext" / "flash_sinkhorn" / "testing"
     names = CG_TESTS if args.suite == "cg" else REGRESSION_TESTS if args.suite == "regressions" else CORE_TESTS
     tests = [test_root] if args.suite == "full" else [test_root / name for name in names]
+    if args.test_file:
+        tests = [test_root / args.test_file]
     report = output / "pytest.xml"
     # Each run has a fresh XML file so an interrupted run cannot reuse old results.
     if report.exists():
@@ -202,6 +218,7 @@ raise SystemExit(pytest.main(sys.argv[1:]))
     summary["gpu_status"] = "running"
     summary["phase"] = "running_tests"
     summary["test_files"] = [str(path.relative_to(implementation)) for path in tests]
+    summary["command"] = command
     save()
     print(f"[tests] Starting {args.suite} author suite; Triton compilation/autotuning may take time.", flush=True)
     with (output / "pytest.log").open("w", encoding="utf-8") as log:
@@ -227,10 +244,23 @@ raise SystemExit(pytest.main(sys.argv[1:]))
             "skipped": sum(c.find("skipped") is not None for c in cases),
         }
         summary["tests"]["passed"] = len(cases) - sum(summary["tests"][k] for k in ("failed", "errors", "skipped"))
+        summary["nonpassing_cases"] = [
+            {"name": f"{case.get('classname', '')}::{case.get('name', '')}",
+             "outcomes": [{"type": item.tag, "message": item.get("message", ""), "detail": item.text or ""}
+                          for item in case if item.tag in ("failure", "error", "skipped")]}
+            for case in cases if any(item.tag in ("failure", "error", "skipped") for item in case)
+        ]
+    else:
+        summary["tests"] = {"total": 0, "passed": 0, "failed": 0, "errors": 0, "skipped": 0}
     passed = summary.get("tests", {}).get("passed", 0)
     ok = returncode == 0 and passed > 0 and summary["source_after_tests"]["status"] == "verified"
     if args.kernel_profile != "upstream":
         ok = ok and summary["profile_after_tests"]["status"] == "profile_verified"
+    all_skipped = (returncode in (0, 5) and summary["tests"]["skipped"] > 0 and passed == 0
+                   and not summary["tests"]["failed"] and not summary["tests"]["errors"]
+                   and summary["source_after_tests"]["status"] == "verified"
+                   and (args.kernel_profile == "upstream" or summary["profile_after_tests"]["status"] == "profile_verified")
+                   and args.hvp_max_cg_iter is None)
     if args.hvp_max_cg_iter is not None:
         convergence = output / "cg_convergence.json"
         summary["cg_convergence"] = (json.loads(convergence.read_text(encoding="utf-8")) if convergence.exists()
@@ -247,9 +277,11 @@ raise SystemExit(pytest.main(sys.argv[1:]))
     if ok and args.hvp_max_cg_iter is not None:
         summary["status"] += "_cg_checked"
     summary["phase"] = "complete"
+    if all_skipped:
+        summary["status"] = summary["gpu_status"] = "not_validated_all_skipped"
     save()
     print(f"[result] {summary['status']}: {summary.get('tests', {})}", flush=True)
-    return 0 if ok else 1
+    return 0 if ok else 3 if all_skipped else 1
 
 
 if __name__ == "__main__":
