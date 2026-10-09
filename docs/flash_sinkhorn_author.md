@@ -115,8 +115,12 @@ trước/sau test. Không ghi đè artifact của một lượt GPU đã có.
 Log server ghi 119 test đạt, 8 lỗi shared memory (101632 byte yêu cầu so với
 101376 byte giới hạn) và 2 lỗi CUDA OOM. Chưa có traceback đầy đủ của 8 lỗi
 shared memory để xác nhận kernel/candidate cụ thể. Cấu hình dưới nhắm vào
-apply-plan matrix dùng trong HVP và hai test OOM; cần chạy lại trên GPU để
-xác nhận tác dụng, không coi đây là kết quả đã đạt CUDA.
+apply-plan matrix dùng trong HVP và hai test OOM. Sau đó người dùng cung cấp
+log lượt `author_flashsinkhorn_rtx5080_core_20261009_113028`: **129 passed,
+0 failed/error/skip, 6 warnings, 171.70 s**, trạng thái `passed_compatibility`.
+Đây là kết quả từ log được cung cấp, chưa phải audit đầy đủ artifact của lượt
+chạy. Có 5 cảnh báo API deprecated và 1 cảnh báo CG chưa hội tụ ở test
+double-backward (residual 0.000133 so với ngưỡng 1e-6 tại 64 bước).
 
 `--kernel-profile rtx5080` tạo bản sao riêng trong output của mỗi lượt, chỉ
 thay launch controls tại `apply_plan_mat_flashstyle`: `block_m=block_n=32`,
@@ -165,6 +169,54 @@ Các test vẫn dùng nguyên tolerance nhưng phạm vi coverage phải hiểu 
 hình đang chạy. Profile này phục vụ correctness trên RTX 5080, chưa tối ưu
 timing và không thay kết quả benchmark upstream. Process khác chiếm VRAM vẫn
 có thể gây OOM; runner không dừng process đó hay nới tolerance để vượt lỗi.
+
+### Kiểm tra hội tụ CG của HVP
+
+Test `test_samplesloss_double_backward_matches_hvp_x_reference` đặt tường minh
+`hvp_max_cg_iter=64` (API `SamplesLoss` mặc định 300). Test gốc chỉ so HVP
+autograd với HVP gọi trực tiếp, không bắt buộc cờ hội tụ của hai phép giải.
+Vì thế test có thể đạt kèm cảnh báo residual vượt ngưỡng.
+
+Chế độ bổ sung `--hvp-max-cg-iter N` chỉ tăng budget của đúng case này, qua
+pytest plugin ngoài cây tác giả. Bản test trên đĩa và assertion parity
+`rtol=atol=1e-5` còn nguyên. Damping `tau2=1e-5`, CG `rtol=atol=1e-6`,
+precision, epsilon, ba vòng forward và các setting khác giữ nguyên.
+Metadata `cg_scenario` ghi rõ đây là test với budget thay đổi.
+
+Plugin ghi cả hai `HvpInfo` vào `cg_convergence.json`, tính ngưỡng
+`max(cg_atol, cg_rtol * cg_initial_residual)` theo code tác giả. Phải có
+output hữu hạn, `cg_converged=True` và residual thực không vượt ngưỡng trên
+cả autograd/reference, đồng thời assertion parity gốc phải đạt. Thiếu một
+đường gọi hoặc còn chưa hội tụ làm validation thất bại. Không lọc cảnh báo.
+
+Một lệnh thử lần lượt 128/256/512/1024 bước rồi chạy lại core tại budget đầu
+tiên đạt cả hội tụ và parity:
+
+```bash
+conda activate minh
+cd /home/doanpt/minh.nd/flash-opw
+git pull --ff-only
+CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 \
+  bash scripts/run_author_hvp_cg.sh
+```
+
+Script giữ artifact từng lượt, chỉ tăng budget tiếp khi diagnostics xác nhận
+CG đã chạm cap mà chưa đạt ngưỡng; lỗi source/CUDA/parity khi đã hội tụ sẽ
+dừng để kiểm tra. Nếu không đạt tại 1024, script báo thất bại, không tự đổi
+damping hay tolerance. Có thể chỉ chạy một budget:
+
+```bash
+CUDA_VISIBLE_DEVICES=1 outputs/venv-author-flashsinkhorn/bin/python \
+  scripts/validate_author_flashsinkhorn.py --gpu --suite cg \
+  --kernel-profile rtx5080 --hvp-max-cg-iter 512 \
+  --output "outputs/author_flashsinkhorn_cg_512_$(date +%Y%m%d_%H%M%S)"
+```
+
+Core đạt với kiểm tra bổ sung có trạng thái `passed_compatibility_cg_checked`.
+Chạy lại core không có `--hvp-max-cg-iter` vẫn giữ nguyên budget 64 của test
+gốc và có thể còn cảnh báo. Kết quả này kiểm chứng hội tụ của fixture nêu
+trên; benchmark HVP cần tự kiểm tra hội tụ trên từng workload thực tế.
+Máy local chưa có CUDA để xác nhận budget nào đủ trên server.
 
 - Đã tải repo, ghim commit và đặt reference chỉ đọc.
 - Đã tạo bản implementation đầy đủ khớp 131 file của tác giả.

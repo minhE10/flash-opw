@@ -30,12 +30,15 @@ REGRESSION_TESTS = (
     "test_hvp_sqeuclid.py::test_hvp_x_matches_dense_reference_small",
     "test_hvp_sqeuclid.py::test_apply_plan_mat_matches_dense_reference_small",
 )
+CG_TESTS = ("test_samples_loss_api.py::test_samplesloss_double_backward_matches_hvp_x_reference",)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gpu", action="store_true")
-    parser.add_argument("--suite", choices=("core", "full", "regressions"), default="core")
+    parser.add_argument("--suite", choices=("core", "full", "regressions", "cg"), default="core")
+    parser.add_argument("--hvp-max-cg-iter", type=int,
+                        help="Increase only the 64-step double-backward fixture budget and require CG convergence on both paths.")
     parser.add_argument("--kernel-profile", choices=("upstream", "rtx5080"), default="upstream",
                         help="upstream is byte-identical; rtx5080 changes only matrix-apply launch controls in a separate copy.")
     parser.add_argument("--implementation-only", action="store_true")
@@ -45,6 +48,10 @@ def main() -> int:
     args = parser.parse_args()
     if args.preflight_timeout <= 0:
         parser.error("--preflight-timeout must be positive")
+    if args.suite == "cg" and args.hvp_max_cg_iter is None:
+        parser.error("--suite cg requires --hvp-max-cg-iter")
+    if args.hvp_max_cg_iter is not None and (args.hvp_max_cg_iter <= 64 or args.suite == "regressions"):
+        parser.error("--hvp-max-cg-iter must exceed 64 and requires suite cg, core or full")
     if args.gpu and args.implementation_only:
         parser.error("GPU validation requires both the immutable reference and the working copy")
     output = args.output.resolve()
@@ -57,6 +64,11 @@ def main() -> int:
                "gpu_requested": args.gpu, "gpu_status": "not_run", "suite": args.suite,
                "status": "running", "phase": "verifying_source",
                "kernel_profile": args.kernel_profile}
+    if args.hvp_max_cg_iter is not None:
+        summary["cg_scenario"] = {"test": CG_TESTS[0], "original_max_cg_iter": 64,
+                                  "max_cg_iter": args.hvp_max_cg_iter,
+                                  "tau2": 1e-5, "cg_rtol": 1e-6, "cg_atol": 1e-6,
+                                  "require_both_paths_converged": True}
 
     def save():
         (output / "validation.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -113,6 +125,8 @@ def main() -> int:
     env["PYTHONUNBUFFERED"] = "1"
     # Both package and test resolution must prefer this exact copy over site-packages.
     env["PYTHONPATH"] = str(implementation / "torch-ext")
+    if args.hvp_max_cg_iter is not None:
+        env["PYTHONPATH"] += os.pathsep + str(ROOT / "scripts")
     env.setdefault("OMP_NUM_THREADS", "2")
     env.setdefault("MKL_NUM_THREADS", "2")
     env.setdefault("OPENBLAS_NUM_THREADS", "2")
@@ -163,7 +177,7 @@ print(json.dumps({'python': sys.version, 'torch': torch.__version__,
     gpu_env = summary["environment"]
     print(f"[gpu] {gpu_env['gpu']}; free VRAM {gpu_env['free_vram_mib']:.0f}/{gpu_env['total_vram_mib']:.0f} MiB.", flush=True)
     test_root = implementation / "torch-ext" / "flash_sinkhorn" / "testing"
-    names = REGRESSION_TESTS if args.suite == "regressions" else CORE_TESTS
+    names = CG_TESTS if args.suite == "cg" else REGRESSION_TESTS if args.suite == "regressions" else CORE_TESTS
     tests = [test_root] if args.suite == "full" else [test_root / name for name in names]
     report = output / "pytest.xml"
     # Each run has a fresh XML file so an interrupted run cannot reuse old results.
@@ -182,6 +196,9 @@ raise SystemExit(pytest.main(sys.argv[1:]))
                str(implementation / "pyproject.toml"), "--rootdir", str(implementation),
                "-o", f"cache_dir={output / 'pytest-cache'}", "--junitxml", str(report),
                *map(str, tests)]
+    if args.hvp_max_cg_iter is not None:
+        command.extend(["-p", "author_hvp_cg_check", "--author-hvp-max-cg-iter", str(args.hvp_max_cg_iter),
+                        "--author-cg-report", str(output / "cg_convergence.json")])
     summary["gpu_status"] = "running"
     summary["phase"] = "running_tests"
     summary["test_files"] = [str(path.relative_to(implementation)) for path in tests]
@@ -214,9 +231,21 @@ raise SystemExit(pytest.main(sys.argv[1:]))
     ok = returncode == 0 and passed > 0 and summary["source_after_tests"]["status"] == "verified"
     if args.kernel_profile != "upstream":
         ok = ok and summary["profile_after_tests"]["status"] == "profile_verified"
+    if args.hvp_max_cg_iter is not None:
+        convergence = output / "cg_convergence.json"
+        summary["cg_convergence"] = (json.loads(convergence.read_text(encoding="utf-8")) if convergence.exists()
+                                     else {"status": "failed", "error": "No CG convergence report was produced."})
+        ok = ok and summary["cg_convergence"]["status"] == "converged"
+        for record in summary["cg_convergence"].get("records", []):
+            residual = record["cg_residual"]
+            required = record["required"]
+            print(f"[cg] {record['path']}: {record['cg_iters']} steps, residual {residual} "
+                  f"<= {required}; confirmed={record['confirmed']}", flush=True)
     summary["gpu_status"] = ("passed_with_skips" if summary["tests"]["skipped"] else "passed") if ok else "failed"
     summary["status"] = (f"{summary['gpu_status']}_compatibility" if ok and args.kernel_profile != "upstream"
                          else summary["gpu_status"])
+    if ok and args.hvp_max_cg_iter is not None:
+        summary["status"] += "_cg_checked"
     summary["phase"] = "complete"
     save()
     print(f"[result] {summary['status']}: {summary.get('tests', {})}", flush=True)
