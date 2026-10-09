@@ -384,4 +384,9 @@ sáu bước và tiêu chí hoàn tất. `scripts/run_author_steps12.py` chạy 
 HVP với checkout OTT-Hessian public đã ghim hash, rồi đo marginal/FP64 cho đúng
 fixture early stopping. Runner giữ nguyên API test, kernel và tolerance; không
 alias `HessianALineax` sang hàm khác. Cả hai bước lưu chung một ZIP có checksum
-để chuyển bằng quy trình Git đã thống nhất. Kết quả GPU của runner này còn chờ.
+để chuyển bằng quy trình Git đã thống nhất. Artifact bước 1–2 qua `dfb4166`
+đã được [audit](../reports/author_flashsinkhorn_steps12_audit_20261009.md):
+early stopping đạt tiêu chí marginal/reference sau 11382 cập nhật trên fixture;
+test HVP KeOps lỗi layout tensor trong baseline OTT-Hessian, hai test JAX
+thiếu API nên skip. Trạng thái tổng vẫn `failed_or_incomplete`; không có
+parity HVP ngoài đạt từ lượt này. ZIP đã sao lưu local và gỡ khỏi main.

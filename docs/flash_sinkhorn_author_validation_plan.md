@@ -61,12 +61,19 @@ thí nghiệm liên quan. Không kết luận kết quả cũ sai chỉ từ kh�
   `7eb189fe39982f587da935044480655b65939637`, toàn bộ 34 commit reachable từ
   các branch đã fetch, không phải shallow clone. Không tìm thấy chuỗi
   `HessianALineax` trong lịch sử này; hai test JAX vẫn thiếu API gốc.
-- `torch_sinkhorn_hessian.py` có các tên API mà test KeOps yêu cầu. Chuẩn bị
-  checkout riêng, ghim SHA-256 và lệnh thử GPU; chưa có kết quả GPU cho test này.
+- Artifact bước 1–2 nhận qua `dfb4166` đã được audit: test KeOps lỗi trong
+  apply của OTT-Hessian (`ni: 16 và 256`) trước phép so HVP; hai test JAX
+  skip do thiếu API. Bước 1 đã xác định nguyên nhân, chưa có parity HVP ngoài đạt.
 - Fixture early stopping chỉ assert số cập nhật <=205, hữu hạn và gần lời gọi
   fixed 200 vòng. Điều này chưa bắt buộc dừng sớm hoặc chứng nhận marginal.
-- Chuẩn bị runner bước 1–2 và phép đo FP64. Kết quả GPU/residual của fixture
-  vẫn chờ server; không coi việc viết runner là đã hoàn tất kiểm chứng.
+- Bước 2 đạt trên fixture gốc: threshold 1e-3 dừng sau 11382 cập nhật,
+  marginal L1 `1.14732538e-4`, plan relative L2 `2.97348140e-3` so FP64 đã
+  hội tụ. Budget 200 chưa đủ; cùng lịch cập nhật vẫn khớp FP64 với relative L2
+  `2.44562416e-5`. Không đổi tolerance upstream.
+- Chi tiết checksum, traceback, bảng budget và giới hạn bằng chứng nằm ở
+  [báo cáo audit bước 1–2](../reports/author_flashsinkhorn_steps12_audit_20261009.md).
+  ZIP đã sao lưu local và gỡ khỏi main theo quy trình chuyển file. Trạng thái
+  tổng vẫn `failed_or_incomplete` do bước 1; bước 3–6 chưa thực hiện.
 - Kiểm tra local: 48 test đạt (reference FP64, phát hiện source/dependency bị
   sửa, accounting và runner); 131 file tác giả vẫn verified. 22 hash dependency
   được đối chiếu trực tiếp với Git blobs tại pin, không chỉ với working tree.
@@ -119,4 +126,5 @@ cùng manifest SHA-256. Các trạng thái:
   chưa được xác nhận. Đọc kết quả riêng từng bước, không coi bước 2 thất bại chỉ
   vì baseline HVP lỗi; ZIP vẫn được tạo để chẩn đoán.
 
-Kết quả khảo sát API ở local và unit tests không thay kết quả GPU còn đang chờ.
+Kết quả GPU bước 1–2 đã được audit trong báo cáo liên kết ở trên. Lệnh này
+dùng để tái chạy; nó không sửa lỗi baseline hoặc bổ sung API JAX còn thiếu.
