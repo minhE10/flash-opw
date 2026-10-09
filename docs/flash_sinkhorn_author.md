@@ -208,15 +208,31 @@ damping hay tolerance. Có thể chỉ chạy một budget:
 ```bash
 CUDA_VISIBLE_DEVICES=1 outputs/venv-author-flashsinkhorn/bin/python \
   scripts/validate_author_flashsinkhorn.py --gpu --suite cg \
-  --kernel-profile rtx5080 --hvp-max-cg-iter 512 \
-  --output "outputs/author_flashsinkhorn_cg_512_$(date +%Y%m%d_%H%M%S)"
+  --kernel-profile rtx5080 --hvp-max-cg-iter 256 \
+  --output "outputs/author_flashsinkhorn_cg_256_$(date +%Y%m%d_%H%M%S)"
 ```
 
 Core đạt với kiểm tra bổ sung có trạng thái `passed_compatibility_cg_checked`.
 Chạy lại core không có `--hvp-max-cg-iter` vẫn giữ nguyên budget 64 của test
 gốc và có thể còn cảnh báo. Kết quả này kiểm chứng hội tụ của fixture nêu
 trên; benchmark HVP cần tự kiểm tra hội tụ trên từng workload thực tế.
-Máy local chưa có CUDA để xác nhận budget nào đủ trên server.
+Máy local không có CUDA; xác nhận GPU dưới đây dựa trên log người dùng cung cấp.
+
+Log lượt `author_flashsinkhorn_rtx5080_core_cg_20261009_150850_3207450_256`
+xác nhận **129 passed, 0 failed/error/skip, 5 warnings trong 87.55 s**;
+trạng thái **`passed_compatibility_cg_checked`**. Budget được chọn trong lượt
+sweep này là **256**; cả hai phép giải thực tế dừng sau **149 bước**:
+
+| Đường HVP | Bước CG | Residual thực | Ngưỡng | Confirmed |
+|---|---:|---:|---:|---|
+| Autograd | 149 | 5.446255499919062e-7 | 1e-6 | True |
+| Reference gọi trực tiếp | 149 | 5.446255499919062e-7 | 1e-6 | True |
+
+Đã xác nhận hội tụ và parity của fixture này ở budget 256, với damping và
+tolerance giữ nguyên. Reference ở đây dùng cùng solver HVP gọi trực tiếp,
+không phải đối chứng Hessian độc lập. Chưa nhận đủ `validation.json`,
+`cg_convergence.json` và JUnit XML để audit artifact độc lập. Thời gian trên
+là tổng thời gian chạy test, không dùng làm benchmark speedup.
 
 - Đã tải repo, ghim commit và đặt reference chỉ đọc.
 - Đã tạo bản implementation đầy đủ khớp 131 file của tác giả.
@@ -228,7 +244,7 @@ Máy local chưa có CUDA để xác nhận budget nào đủ trên server.
   không có Triton/CUDA.
 - Chưa có benchmark mới hoặc kết quả FlashOPW dựa trên lõi mới.
 
-Sau khi validation CUDA đạt: đối chiếu chi tiết bản cũ với bản tác giả trên
+Sau lượt core GPU đã đạt: đối chiếu chi tiết bản cũ với bản tác giả trên
 cùng input/weights/cost/schedule, rồi xây adapter FlashOPW dùng lõi tác giả.
 Kiểm tra lại correctness/hội tụ trước khi chạy các nhóm accuracy và timing.
 Sai khác runtime so paper hoặc implementation khác repo chưa tự chứng minh
