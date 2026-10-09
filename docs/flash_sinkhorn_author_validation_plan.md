@@ -310,14 +310,15 @@ Kiểm tra local đã bao gồm đối chiếu lịch cập nhật bằng CPU, �
 phát hiện arrays/tolerance bị sửa và runner giữ case lỗi khi tổng hợp/bundle.
 Kết quả GPU bước 4 đã nhận qua `bbf200c` và kiểm tra ngày 10/10/2026; xem dưới đây.
 
-### Kết quả bước 4: lỗi số học và thiếu direction để audit toàn phần
+### Kết quả bước 4: audit đầy đủ dữ liệu, còn lỗi số học
 
 Lượt chạy đủ 111/111, **62 failed, 28 passed, 21 passed với gap**, không runtime
-error. Source/profile/legacy/helper hashes và checksum khớp. Audit một phần
-tính lại plan/apply/gradient, forward reference FP64 và chênh lệch hai output
-HVP đã lưu; giữ trạng thái GPU `failed`. x/y/a/b khớp hash cả 111 case, nhưng
-CPU randn direction trên Windows khác byte Linux. Giả định tái tạo direction
-bằng seed của runner ban đầu chưa đủ; chưa xác minh lại direct-HVP.
+error. Source/profile/legacy/helper hashes và checksum khớp. Direction ban đầu
+không tái tạo portable giữa Linux/Windows; đã nhận đủ 73 direction đúng hash
+qua upload `71e2990` và kiểm tra binding với archive gốc. Audit đầy đủ dữ liệu
+111/111 case hoàn tất, không lỗi nhất quán dữ liệu; 112 phép so direct-HVP của
+56 case dense đã tính lại bằng FP64. Author đạt 44/56, legacy đạt 56/56 trên
+cùng plan và damping. Giữ trạng thái GPU `failed`; không chạy lại CUDA.
 
 Tất cả so plan author/legacy sau khớp lịch đều đạt. Tuy nhiên cả 38 forward
 benchmark TF32 lỗi so FP64; mô hình CPU truncation dot giải thích phần lớn
@@ -331,6 +332,7 @@ Chi tiết bằng chứng, giới hạn audit và control GPU cần chạy tiế
 [báo cáo bước 4](../reports/author_flashsinkhorn_step4_audit_20261010.md).
 Không gọi bước 4 hoàn tất hoặc chuyển lỗi thành pass do cả hai backend gần nhau.
 
+Quy trình bổ sung direction dưới đây **đã hoàn tất**, giữ để tái lập audit.
 Để bổ sung direction chính xác mà **không chạy lại GPU**, sau khi pull công cụ
 mới, khôi phục ZIP gốc từ commit upload vào một đường dẫn ignored và xuất
 directions trên cùng server/venv. Exporter so tất cả input hash với lượt gốc;
@@ -344,7 +346,7 @@ git pull --ff-only && git show bbf200c:outputs/author_flashsinkhorn_step4_202610
 env OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 outputs/venv-author-flashsinkhorn/bin/python -u scripts/export_author_step4_directions.py outputs/author_step4_original_bbf200c.zip --upload
 ```
 
-Sau khi nhận đủ các part: pull, kiểm tra binding với SHA-256 ZIP gốc và hash
+Đã nhận đủ ba part: pull, kiểm tra binding với SHA-256 ZIP gốc và hash
 direction từng case, audit lại CPU FP64, sao lưu rồi gỡ ZIP part khỏi main.
 Auditor hỗ trợ `--directions <part>` lặp cho mọi part. Chỉ dùng
 `--allow-missing-direction` khi muốn audit một phần, trạng thái phải là

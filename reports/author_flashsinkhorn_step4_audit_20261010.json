@@ -3,25 +3,23 @@
   "archive": "author_flashsinkhorn_step4_20261009_212437_3232203.zip",
   "archive_sha256": "75118a0a5395c10557dff19e5165331161a3a3cb65049f221c78e2a5ee600170",
   "audit": {
-    "status": "partial_audit",
+    "status": "failed",
     "reported_run_status": "failed",
     "cases": [
       {
         "id": "case_000",
         "status": "failed",
         "failed_checks": [
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_001",
@@ -47,33 +45,29 @@
           "legacy_actual_mass_gradient_x",
           "author_normalized_gradient_y",
           "legacy_actual_mass_gradient_y",
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_002",
         "status": "failed",
         "failed_checks": [
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_003",
@@ -99,31 +93,26 @@
           "legacy_actual_mass_gradient_x",
           "author_normalized_gradient_y",
           "legacy_actual_mass_gradient_y",
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_004",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_005",
@@ -132,26 +121,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_006",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_007",
@@ -160,78 +143,60 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_008",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_009",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_010",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_011",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_012",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_013",
@@ -259,26 +224,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_014",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_015",
@@ -306,26 +265,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_016",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_017",
@@ -334,26 +287,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_018",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_019",
@@ -362,78 +309,60 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_020",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_021",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_022",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_023",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_024",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_025",
@@ -461,26 +390,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_026",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_027",
@@ -508,26 +431,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_028",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_029",
@@ -536,26 +453,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_030",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_031",
@@ -564,88 +475,75 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_032",
         "status": "failed",
         "failed_checks": [
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_033",
         "status": "failed",
         "failed_checks": [
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_034",
         "status": "failed",
         "failed_checks": [
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_035",
         "status": "failed",
         "failed_checks": [
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_036",
         "status": "failed",
         "failed_checks": [
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_037",
@@ -669,33 +567,29 @@
           "legacy_mass_0",
           "legacy_actual_mass_gradient_x",
           "legacy_actual_mass_gradient_y",
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_038",
         "status": "failed",
         "failed_checks": [
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_039",
@@ -719,31 +613,26 @@
           "legacy_mass_0",
           "legacy_actual_mass_gradient_x",
           "legacy_actual_mass_gradient_y",
-          "hvp_author_vs_legacy"
+          "hvp_author_vs_legacy",
+          "hvp_author_vs_direct"
         ],
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_040",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_041",
@@ -772,26 +661,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_042",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_043",
@@ -820,78 +703,60 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_044",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_045",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_046",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_047",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_048",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_049",
@@ -919,26 +784,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_050",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_051",
@@ -966,26 +825,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_052",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_053",
@@ -994,26 +847,20 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_054",
         "status": "passed_checks",
         "failed_checks": [],
         "coverage_gaps": [],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_055",
@@ -1022,13 +869,10 @@
         "coverage_gaps": [
           "Forward marginal not confirmed at fixed solve budget"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
-        "unverified_checks": [
-          "hvp_author_vs_direct",
-          "hvp_legacy_vs_direct"
-        ],
-        "direct_hvp_recomputed": false
+        "unverified_checks": [],
+        "direct_hvp_recomputed": true
       },
       {
         "id": "case_056",
@@ -1976,7 +1820,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -1988,7 +1832,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2000,7 +1844,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2014,7 +1858,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2026,7 +1870,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2038,7 +1882,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2050,7 +1894,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2062,7 +1906,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2074,7 +1918,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2086,7 +1930,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2100,7 +1944,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2114,7 +1958,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2138,7 +1982,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2150,7 +1994,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2162,7 +2006,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2174,7 +2018,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -2186,7 +2030,7 @@
         "coverage_gaps": [
           "Large-shape checks sample rows/columns; no full marginal certificate or full FP64 solve"
         ],
-        "direction_verified": false,
+        "direction_verified": true,
         "direction_required": true,
         "unverified_checks": [],
         "direct_hvp_recomputed": false
@@ -6160,5 +6004,235 @@
       }
     ],
     "limitation": "TF32 truncation is a CPU diagnostic hypothesis; does not reproduce all Triton reductions or certify CUDA correctness."
-  }
+  },
+  "direction_supplement": {
+    "upload_commit": "71e2990",
+    "required": 73,
+    "verified": 73,
+    "direct_hvp_cases_recomputed": 56,
+    "direct_assertions_recomputed": 112,
+    "unverified_checks": 0,
+    "parts": [
+      {
+        "file": "part_01.zip",
+        "bytes": 27993783,
+        "sha256": "4eab5375c48637df3e81288fb792c55d9602c912cd1be36a9d7621c641ad2dff"
+      },
+      {
+        "file": "part_02.zip",
+        "bytes": 40309674,
+        "sha256": "b7d3aae5a4850a0adede0204e23c86002cd5de04afc390dc6889be3eec0d07e3"
+      },
+      {
+        "file": "part_03.zip",
+        "bytes": 11855631,
+        "sha256": "b55342799a4f4c3d03824516fcaedc0803afc2c8260791a5e8b43590625e3cc9"
+      }
+    ]
+  },
+  "direct_hvp_summary": {
+    "relative_limit": 0.0005,
+    "author": {
+      "passed": 44,
+      "failed": 12,
+      "max_relative_l2": 24.68769824492059
+    },
+    "legacy": {
+      "passed": 56,
+      "failed": 0,
+      "max_relative_l2": 2.95629228831241e-05
+    },
+    "interpretation": "Same supplied plan, original exact direction and matched damping; CPU FP64 full KKT reference, not CUDA rerun."
+  },
+  "exact_direction_diagnosis": [
+    {
+      "id": "case_000",
+      "shape": [
+        17,
+        23,
+        1
+      ],
+      "precision": "ieee",
+      "author_vs_direct": 0.0011919230952472583,
+      "legacy_vs_direct": 2.95629228831241e-05,
+      "author_cg": {
+        "cg_converged": true,
+        "cg_iters": 8,
+        "cg_residual": 6.70191866447567e-07,
+        "cg_initial_residual": 0.011278223246335983,
+        "converged_lambda": 0.0,
+        "hit_neg_curv": false,
+        "diagnostic_msg": ""
+      },
+      "legacy_cg": {
+        "cg_converged": true,
+        "cg_iters": 8,
+        "cg_residual": 6.652028332609916e-07,
+        "cg_initial_residual": 0.011278139427304268,
+        "damping": 1.0000000000000001e-07,
+        "breakdown": false
+      }
+    },
+    {
+      "id": "case_002",
+      "shape": [
+        17,
+        23,
+        1
+      ],
+      "precision": "ieee",
+      "author_vs_direct": 0.00139204952829303,
+      "legacy_vs_direct": 2.1119148634045642e-05,
+      "author_cg": {
+        "cg_converged": true,
+        "cg_iters": 8,
+        "cg_residual": 6.845010034339793e-07,
+        "cg_initial_residual": 0.01128461118787527,
+        "converged_lambda": 0.0,
+        "hit_neg_curv": false,
+        "diagnostic_msg": ""
+      },
+      "legacy_cg": {
+        "cg_converged": true,
+        "cg_iters": 8,
+        "cg_residual": 6.498278253275203e-07,
+        "cg_initial_residual": 0.0112846614792943,
+        "damping": 1.0000000000000001e-07,
+        "breakdown": false
+      }
+    },
+    {
+      "id": "case_032",
+      "shape": [
+        17,
+        23,
+        512
+      ],
+      "precision": "ieee",
+      "author_vs_direct": 0.6194163675879638,
+      "legacy_vs_direct": 2.9938608342580935e-07,
+      "author_cg": {
+        "cg_converged": true,
+        "cg_iters": 1,
+        "cg_residual": 4.334350123258446e-08,
+        "cg_initial_residual": 0.02075142227113247,
+        "converged_lambda": 0.0,
+        "hit_neg_curv": false,
+        "diagnostic_msg": ""
+      },
+      "legacy_cg": {
+        "cg_converged": true,
+        "cg_iters": 1,
+        "cg_residual": 4.150955490445085e-08,
+        "cg_initial_residual": 0.02075142227113247,
+        "damping": 1e-05,
+        "breakdown": false
+      },
+      "prefix_error_norm": 6.249275698492882e-07,
+      "tail_error_norm": 6.781506644776286,
+      "tail_vs_missing_mat5": 43.034823450361245,
+      "tail_corrected_author_vs_direct": 0.86954710816024,
+      "all_corrected_author_vs_direct": 0.6197050489550616
+    },
+    {
+      "id": "case_034",
+      "shape": [
+        17,
+        23,
+        512
+      ],
+      "precision": "ieee",
+      "author_vs_direct": 0.619416369262555,
+      "legacy_vs_direct": 3.2432753475790967e-07,
+      "author_cg": {
+        "cg_converged": true,
+        "cg_iters": 1,
+        "cg_residual": 4.4370196405907336e-08,
+        "cg_initial_residual": 0.02075142040848732,
+        "converged_lambda": 0.0,
+        "hit_neg_curv": false,
+        "diagnostic_msg": ""
+      },
+      "legacy_cg": {
+        "cg_converged": true,
+        "cg_iters": 1,
+        "cg_residual": 4.342105697219267e-08,
+        "cg_initial_residual": 0.02075142040848732,
+        "damping": 1e-05,
+        "breakdown": false
+      },
+      "prefix_error_norm": 4.553082944060081e-07,
+      "tail_error_norm": 6.781506648256817,
+      "tail_vs_missing_mat5": 43.03482552834371,
+      "tail_corrected_author_vs_direct": 0.8695471105292372,
+      "all_corrected_author_vs_direct": 0.619705050931064
+    },
+    {
+      "id": "case_036",
+      "shape": [
+        17,
+        23,
+        1024
+      ],
+      "precision": "ieee",
+      "author_vs_direct": 24.687694366067785,
+      "legacy_vs_direct": 2.4652555956684503e-06,
+      "author_cg": {
+        "cg_converged": true,
+        "cg_iters": 9,
+        "cg_residual": 7.192659268184798e-07,
+        "cg_initial_residual": 0.022205963730812073,
+        "converged_lambda": 0.0,
+        "hit_neg_curv": false,
+        "diagnostic_msg": ""
+      },
+      "legacy_cg": {
+        "cg_converged": true,
+        "cg_iters": 9,
+        "cg_residual": 7.194448699010536e-07,
+        "cg_initial_residual": 0.02220599539577961,
+        "damping": 1.0000000000000001e-07,
+        "breakdown": false
+      },
+      "prefix_error_norm": 5.428612919035416e-06,
+      "tail_error_norm": 206.98604990317375,
+      "tail_vs_missing_mat5": 33.46590355760487,
+      "tail_corrected_author_vs_direct": 28.455094843095928,
+      "all_corrected_author_vs_direct": 24.66956731555065
+    },
+    {
+      "id": "case_038",
+      "shape": [
+        17,
+        23,
+        1024
+      ],
+      "precision": "ieee",
+      "author_vs_direct": 24.68769824492059,
+      "legacy_vs_direct": 2.60054430264716e-06,
+      "author_cg": {
+        "cg_converged": true,
+        "cg_iters": 9,
+        "cg_residual": 7.195048965513706e-07,
+        "cg_initial_residual": 0.02220599167048931,
+        "converged_lambda": 0.0,
+        "hit_neg_curv": false,
+        "diagnostic_msg": ""
+      },
+      "legacy_cg": {
+        "cg_converged": true,
+        "cg_iters": 9,
+        "cg_residual": 7.194339559646323e-07,
+        "cg_initial_residual": 0.022206000983715057,
+        "damping": 1.0000000000000001e-07,
+        "breakdown": false
+      },
+      "prefix_error_norm": 5.700758366497545e-06,
+      "tail_error_norm": 206.98604817711785,
+      "tail_vs_missing_mat5": 33.46591048999657,
+      "tail_corrected_author_vs_direct": 28.45509922743414,
+      "all_corrected_author_vs_direct": 24.669571206551144
+    }
+  ],
+  "exact_direction_diagnosis_note": "The zero-filled missing-Mat5 hypothesis does not explain saved tails. Unwritten torch.empty memory can contain arbitrary values; CPU addition is not a remedy or pass criterion. Pruning defect still requires GPU telemetry/manual-block control."
 }

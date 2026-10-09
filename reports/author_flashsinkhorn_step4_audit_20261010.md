@@ -17,30 +17,63 @@ bước 5 hoặc gọi đây là full correctness pass.
 - Môi trường 111 case thống nhất: Python 3.14.8, Torch 2.11.0+cu128,
   Triton 3.6.0, CUDA 12.8, NumPy 2.4.6, RTX 5080; GeomLoss parent 0.3.1.
 
-Audit toàn phần ban đầu dừng ở hash vector `direction`: CPU `torch.randn`
-trên Windows không tái tạo đúng byte đã sinh trên Linux. **Cả 111 case có
-x/y/a/b khớp từng byte**; chỉ direction khác. Bộ công cụ ban đầu đã dựa quá
-nhiều vào giả định CPU RNG portable và không lưu vector thực tế.
+Audit ban đầu chỉ thực hiện một phần vì CPU `torch.randn` trên Windows không
+tái tạo đúng byte direction đã sinh trên Linux. **Cả 111 case có x/y/a/b khớp
+từng byte**. Đã khắc phục phần thiếu input bằng exporter CPU chạy trên host gốc;
+exporter chỉ xuất khi toàn bộ input hash khớp lượt GPU, không chạy lại solver.
 
-Đã bổ sung chế độ **partial_audit** tường minh, không bỏ kiểm tra hash input
-x/y/a/b. Tính lại đầy đủ plan, apply, gradient, các reference forward FP64,
-residual và chênh lệch HVP từ hai output đã lưu. Kết quả partial audit bao
-phủ 111 case, không lỗi nhất quán dữ liệu. **Chưa tính lại hệ KKT/direct-HVP
-với đúng direction server**; 112 assertion direct-HVP của 56 case dense chỉ
-được kiểm tra accounting, không được ghi là đã xác minh số học. HVP lớn cũng
-chưa có direction xác thực; parity hai output được tính lại từ arrays lưu.
+Đã nhận ba ZIP direction qua commit **`71e2990`**. Manifest từng part khớp
+checksum và SHA-256 archive GPU gốc; đủ **73/73 direction HVP**, đúng dtype,
+shape và hash input của từng case. Không còn assertion direct-HVP chưa audit.
+38 case forward không dùng direction.
 
-Vector không dùng trong 38 case forward nên hash direction không ảnh hưởng
-audit phép toán của nhóm đó. 73 case có HVP cần bổ sung direction. Script
-`export_author_step4_directions.py` tái sinh trên host gốc và chỉ xuất khi
-**toàn bộ input hash khớp lượt GPU**, chia ZIP tối đa 48 MiB dữ liệu mỗi part.
-Script chỉ chạy CPU, không chạy lại 111 phép đo GPU. Auditor nhận tất cả part
-qua `--directions`, kiểm tra checksum, binding với SHA-256 ZIP gốc, dtype,
-shape và hash direction từng case trước khi dùng.
+| Part | Byte | SHA-256 |
+|---|---:|---|
+| part_01.zip | 27993783 | `4eab5375c48637df3e81288fb792c55d9602c912cd1be36a9d7621c641ad2dff` |
+| part_02.zip | 40309674 | `b7d3aae5a4850a0adede0204e23c86002cd5de04afc390dc6889be3eec0d07e3` |
+| part_03.zip | 11855631 | `b55342799a4f4c3d03824516fcaedc0803afc2c8260791a5e8b43590625e3cc9` |
 
-ZIP gốc và dữ liệu audit/diagnosis đã sao lưu tại
-`outputs/author_flashsinkhorn_diagnosis_bbf200c/` (ignored). Gỡ ZIP chuyển giao
-khỏi main; lịch sử Git vẫn giữ commit upload. Báo cáo TeX đang chỉnh giữ nguyên.
+**Audit đầy đủ dữ liệu đã lưu hoàn tất cho 111/111 case, errors=[]**: tính lại
+plan/apply/gradient, reference forward FP64, residual, parity HVP và hệ KKT
+FP64 với direction đúng cho 56 case dense. Cả **112 assertion direct-HVP**
+được tính lại, khớp sai số và trạng thái gốc; reference HVP lưu khớp reference
+tính lại ở relative L2 <1e-8, residual hệ tuyến tính <=1e-9.
+Trạng thái audit là `failed` vì xác nhận các lỗi số học gốc, không phải
+`failed_audit` do dữ liệu thiếu hoặc không nhất quán. Không chạy lại CUDA;
+HVP lớn vẫn chỉ kiểm tra các hàng lưu, chưa có direct-KKT toàn shape.
+
+ZIP gốc sao lưu tại `outputs/author_flashsinkhorn_diagnosis_bbf200c/`; ba ZIP
+direction và audit đầy đủ tại `outputs/author_flashsinkhorn_diagnosis_71e2990/`
+(đều ignored). Bản sao đã kiểm tra SHA-256 trước khi gỡ ZIP chuyển giao khỏi
+main; lịch sử Git vẫn giữ commit upload. Báo cáo TeX đang chỉnh giữ nguyên.
+
+## HVP đối chiếu trực tiếp với FP64 bằng direction đúng
+
+| Backend | Đạt ngưỡng 5e-4 | Không đạt | Max relative L2 |
+|---|---:|---:|---:|
+| Author | 44/56 | 12 | 24.6876982 |
+| Legacy trên cùng plan và damping đúng đơn vị | 56/56 | 0 | 2.95629229e-5 |
+
+12 case author không đạt là `case_000`–`case_003` (d=1), `case_032`–`case_035`
+(d=512), `case_036`–`case_039` (d=1024), bao gồm hai lịch cập nhật và hai cấu
+hình precision của forward. HVP của cả hai backend luôn chạy IEEE trong lượt
+này. Plan được cấp chung cho phép so HVP; lỗi forward TF32 được kiểm tra riêng.
+
+Các case IEEE tiêu biểu:
+
+| Case | Shape | Author/direct | Legacy/direct |
+|---|---|---:|---:|
+| 000 | 17x23x1 | .00119192310 | 2.95629229e-5 |
+| 002 | 17x23x1 | .00139204953 | 2.11191486e-5 |
+| 032 | 17x23x512 | .619416368 | 2.99386083e-7 |
+| 036 | 17x23x1024 | 24.6876944 | 2.46525560e-6 |
+
+Với case 032, norm chênh lệch author/legacy ở 256 chiều đầu là `6.25e-7`,
+ở phần còn lại là `6.78151`; case 036 tương ứng `5.43e-6` và `206.986`.
+Direction đúng xác nhận ranh giới sai từ chiều 256. Thử giả định các cột Mat5
+chưa ghi bằng zero rồi cộng bù Mat5 FP64 **không** giải thích được output lưu;
+`torch.empty` không bảo đảm zero. Không dùng phép cộng bù đó để sửa kết quả.
+Vẫn cần chạy control GPU có telemetry và manual block đủ D.
 
 ## Kết quả theo nhóm
 
@@ -113,15 +146,16 @@ hai case IEEE d=1024 nhỏ cũng có ranh giới sai rõ từ chiều 256.
 
 Chưa có selected-config telemetry từ server hoặc GPU control Mat5 manual;
 cần lưu cả hai khi kiểm tra biện pháp sửa. Không sửa bản tác giả readonly
-hoặc âm thầm tính lại artifact thành pass. Các HVP nhỏ d=1 và các sai số nhỏ
-hơn ở d=128/256 cần được phân tích tiếp bằng direction đúng và control CG
-chặt hơn; chưa quy tất cả lỗi HVP cho cùng một nguyên nhân.
+hoặc âm thầm tính lại artifact thành pass. Direction đúng đã xác nhận lỗi
+author/direct ở d=1, dù legacy/direct đạt. Chỉ còn giả thuyết CG/FP32 cho nhóm
+này; cờ CG hội tụ không bảo đảm ngưỡng HVP 5e-4. Các sai số nhỏ hơn ở d=128/256
+của shape lớn chưa có đối chiếu direct-KKT, cần control GPU riêng. Chưa quy
+tất cả lỗi HVP cho cùng một nguyên nhân.
 
 ## Việc tiếp theo
 
-1. Bổ sung đúng direction bằng exporter CPU trên server, audit lại direct-HVP
-   từ archive gốc; không chạy lại toàn bộ 111 GPU case chỉ để chuyển input.
-2. Control GPU có telemetry: Mat5 nguyên bản so manual block đủ D, lặp lại
+1. Đã hoàn tất bổ sung direction và audit direct-HVP từ archive gốc.
+2. Tiếp theo: control GPU có telemetry, Mat5 nguyên bản so manual block đủ D, lặp lại
    để phát hiện cột không ghi; IEEE so TF32 trên cùng input; CG chặt hơn cho
    các case nhỏ nhạy. Nếu dùng workaround, giữ riêng và ghi đúng patch/flags.
 3. Chỉ chốt correctness và tiến sang bước 5 sau khi các lỗi này được xử lý
