@@ -104,8 +104,14 @@ marginal stopping policy; không ghi đè file tuning Flash-only cũ.
 Runner: `experiments.opw_group4`, audit: `experiments.opw_group4_audit`.
 Xem [protocol và lệnh server nhóm4](opw_group4.md). Cập nhật 07/10 theo yêu cầu:
 tiến hành nhóm4 với freeze nhóm3 trước nhóm5; dùng adaptive policy đã freeze,
-không dùng fixed200. Windows kiểm tra pipeline bằng dữ liệu synthetic; full
-TEST thật chạy trên server, chưa có kết quả full TEST để báo cáo.
+không dùng fixed200. Windows kiểm tra pipeline bằng dữ liệu synthetic.
+Cập nhật 09/10: full TEST FacesUCR đã hoàn tất 17 cấu hình/8721 chunks trên
+server; server audit và local readback pass. Trạng thái
+`completed_with_nonconvergence` được giữ nguyên. Flash selected đạt
+ACC@1 92.244%, MAP69.946%; OPW selected89.707%/66.576%; TLp92.341%/70.432%.
+OPW preset đạt92.829%/71.108%, cao hơn Flash selected nhưng có333 cặp vượt tau;
+Flash selected có5 cặp chỉ vượt tau sát ngưỡng FP32. Xem
+[kết quả và giới hạn nhóm4](../reports/opw_group4_gpu_20261009/review.md).
 
 * FacesUCR đầy đủ: gallery200,query2050; FaceAll: gallery560,query1690.
   Cả hai dài131,d1 nên chưa đại diện native long sequences.
@@ -177,9 +183,10 @@ Flash chọn mu50/epsilon.1: ACC79.762%,MAP74.405%; TLp80.952%/75.130%.
 Ba candidate có cap failure bị loại; selected candidates đều đạt tau1e-3.
 Xem [báo cáo nhóm3 GPU](../reports/opw_group3_gpu_20261007/review.md) và
 [file freeze tất cả metric](../reports/opw_group3_gpu_20261007/selected_all_metrics.json).
-Nhóm4 đã có runner full TEST/resume và paired-statistics audit theo yêu cầu
-07/10, chờ chạy full FacesUCR trên server. Nhóm5–6 vẫn là kế hoạch.
-Chưa dùng TEST để chọn tham số hoặc đổi score.
+Nhóm4 full FacesUCR đã hoàn tất và kiểm tra ngày09/10; xem báo cáo nhóm4 ở trên.
+Nhóm5–6 vẫn cần benchmark theo protocol. Lần full TEST này giữ nguyên selection
+TRAIN và score; các pilot TEST trước đây đã được xem trong quá trình phát triển,
+không gọi toàn quá trình là blind TEST.
 Runner hiện có: correctness tests, tuning Flash riêng và tuning tất cả metric,
 k-NN cố định, GPU scaling ở số vòng cố định và full TEST với selection mới,
 paired statistical analysis. Throughput batch thuộc nhóm6 còn cần bổ sung.

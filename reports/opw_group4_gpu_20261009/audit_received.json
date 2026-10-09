@@ -1,0 +1,230 @@
+{
+  "status": "passed",
+  "source_commit": "8cfb172",
+  "uploaded_files_verified": {
+    "audit.json": {
+      "bytes": 744,
+      "sha256": "8b1c473b8b9fc6bdcd7ea4dbc65ec842b1130bd0a8c02897043d1bf79822ea2d",
+      "recovered_line_endings": "working_tree"
+    },
+    "audit_stdout.log": {
+      "bytes": 745,
+      "sha256": "e2df6c2540c544c41a826e836593e0d6d25a44fe816ba94e6e76f6adee5d6e05",
+      "recovered_line_endings": "working_tree"
+    },
+    "comparison_report.md": {
+      "bytes": 4724,
+      "sha256": "750f6cd02e667a23f00e427f8e29a687bfe8ae021084f6b5ef9ae40ea078ca55",
+      "recovered_line_endings": "working_tree"
+    },
+    "data_manifest.json": {
+      "bytes": 21861,
+      "sha256": "8b5a2023a92df8c479206acdbb65b8ed359719f3064362368b2ec8cfd43e24a3",
+      "recovered_line_endings": "working_tree"
+    },
+    "environment.before_checkpoint_validator_fix.json": {
+      "bytes": 43432,
+      "sha256": "0551a4ed5b19d1005c9bff621f5cc64827bbadabc89f5112d43e5394f7da4e70",
+      "recovered_line_endings": "working_tree"
+    },
+    "environment.json": {
+      "bytes": 44048,
+      "sha256": "3d76c8c89b34cd2f6d0a2c8d902a65e97f103cf3e23438e8d88670c3d8dff086",
+      "recovered_line_endings": "working_tree"
+    },
+    "evaluations.json": {
+      "bytes": 4761261,
+      "sha256": "ddadc8e77c64d7d0147719af6a64491e4bcb3873900a3f34bd259c0b8f4c8e33",
+      "recovered_line_endings": "working_tree"
+    },
+    "frozen_selection.json": {
+      "bytes": 19788,
+      "sha256": "82a090e585c28a98a3ddabe007bac98849cfb43b903bcbd8343183d9c4602d91",
+      "recovered_line_endings": "working_tree"
+    },
+    "paired_statistics.csv": {
+      "bytes": 5703,
+      "sha256": "a7f88a16ab0c55cd0b90db410bc02cccf06c20e35e6def9484ce5ccdcd1c8a71",
+      "recovered_line_endings": "working_tree"
+    },
+    "paired_statistics.json": {
+      "bytes": 14629,
+      "sha256": "6f1684c12fe499bf0a67cf4e3f165a1e6223c465f142aa999677a48dcd219fcd",
+      "recovered_line_endings": "working_tree"
+    },
+    "results.csv": {
+      "bytes": 22916,
+      "sha256": "4e23eadd5658dc759b968ff65f3df8cedd76a517fb3d034e859703526ee6ef2d",
+      "recovered_line_endings": "working_tree"
+    },
+    "run_state.json": {
+      "bytes": 99,
+      "sha256": "8b4ab171945c801ac33f4850cce3dfdb07d2422f69a59403f4db4c823814877b",
+      "recovered_line_endings": "working_tree"
+    },
+    "summary.json": {
+      "bytes": 10151,
+      "sha256": "7236fa2ba73ead2684ee675671cc559b0d3aa18b637f0bdcf0e7af822deb6cc5",
+      "recovered_line_endings": "working_tree"
+    }
+  },
+  "numerical_sources_verified": 21,
+  "dataset": "FacesUCR",
+  "gallery": 200,
+  "queries": 2050,
+  "unique_configurations": 17,
+  "method_profile_evaluations": 22,
+  "metric_k_rows_verified": 132,
+  "paired_comparisons_recomputed": 20,
+  "total_recorded_solve_hours": 38.69693457487841,
+  "server_full_audit": {
+    "status": "passed",
+    "chunks_verified": 8721,
+    "unique_configurations": 17,
+    "gallery": 200,
+    "queries": 2050,
+    "method_profile_evaluations": 22,
+    "full_test": true,
+    "test_used_for_selection": false,
+    "paired_comparisons_verified": 20,
+    "convergence_status": "completed_with_nonconvergence",
+    "checks": [
+      "frozen sources and parameters",
+      "full TRAIN/TEST values and indices",
+      "chunk hashes/checkpoints",
+      "complete matrices versus chunks",
+      "per-query AP and k-NN predictions",
+      "MAP/ACC and residual diagnostics",
+      "paired bootstrap / exact McNemar / Holm",
+      "CSV tables and report"
+    ],
+    "limits": "Artifact readback only; does not independently re-solve every coupling or measure GPU performance"
+  },
+  "recorded_quality": {
+    "selected__flash-opw": {
+      "unconverged_pairs": 5,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__opw": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__tlp": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__tlp": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__opw-kl": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__sinkhorn": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__tcot": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "selected__dtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__dtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "selected__ldtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__ldtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "selected__ndtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__ndtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "selected__soft-dtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "selected__ot": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__ot": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    },
+    "preset__flash-opw": {
+      "unconverged_pairs": 2,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__opw": {
+      "unconverged_pairs": 333,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__opw-kl": {
+      "unconverged_pairs": 322,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__sinkhorn": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__tcot": {
+      "unconverged_pairs": 0,
+      "entropic": true,
+      "pairs": 410000
+    },
+    "preset__soft-dtw": {
+      "unconverged_pairs": 0,
+      "entropic": false,
+      "pairs": 410000
+    }
+  },
+  "checks": [
+    "upload SHA256 with explicit Git line-ending recovery",
+    "frozen sources, parameters, policy and migration",
+    "full local TRAIN/TEST bytes, values and indices",
+    "MAP aggregates from stored per-query AP",
+    "ACC at every k from stored predictions and official TEST labels",
+    "paired bootstrap, McNemar and Holm",
+    "CSV consistency and configuration coverage"
+  ],
+  "limits": [
+    "No uploaded distance matrices or chunks: local audit cannot recompute AP/ranking from distances or residuals from couplings",
+    "Full chunk/matrix readback passed on server according to uploaded audit; not rerun locally",
+    "No GPU solver rerun; wall times include conversion/diagnostics and are not group5 benchmark",
+    "TRAIN-frozen current run; prior TEST pilots were viewed during development, so not a wholly blind development process"
+  ]
+}
